@@ -1,0 +1,26 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ahis.template.domain.Models.Entities
+{
+    public class BaseGuidEntity
+    {
+        [Required]
+        [Key]
+        public Guid Id { get; set; } = new Guid();
+        [Required]
+        public bool IsActive { get; set; } = true;
+        [Required]
+        public bool IsDelete { get; set; } = false;
+        public string? RegisterBy { get; set; } = null;
+        [Required]
+        public DateTime RegisterDate { get; set; } = DateTime.UtcNow;
+        public string? UpdatedBy { get; set; } = null;
+        public DateTime? UpdatedDate { get; set; } = null;
+        public string? Remarks { get; set; } = null;
+    }
+}
