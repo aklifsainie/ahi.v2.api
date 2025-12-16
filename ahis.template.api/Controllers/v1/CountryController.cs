@@ -18,8 +18,9 @@ namespace ahis.template.api.Controllers.v1
         }
 
         [HttpGet("GetAll")]
-        public async Task<IActionResult> GetAll([FromQuery] GetAllCountryQuery query)
+        public async Task<IActionResult> GetAll()
         {
+            var query = new GetAllCountryQuery();
             return Ok(await _mediator.Send(query));
         }
 
