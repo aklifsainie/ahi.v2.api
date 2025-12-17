@@ -23,7 +23,7 @@ builder.Services.AddCors(options =>
             .WithOrigins("https://localhost:7270", "https://localhost:7280") // <-- allowed origins
             .AllowAnyHeader()
             .AllowAnyMethod();
-            //.AllowCredentials(); // remove if dont need cookies/credentials
+            //.AllowCredentials(); // remove if do not need cookies/credentials
     });
 
     // DEV: you can add an open policy for development only (optional)

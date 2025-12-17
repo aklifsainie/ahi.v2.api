@@ -10,10 +10,11 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using FluentResults;
 
 namespace ahis.template.application.Features.CountryFeatures.Command
 {
-    public class AddCountryCommand : IRequest<ApiResponse<object>>
+    public class AddCountryCommand : IRequest<Result<object>>
     {
         [Required]
         public string CountryFullname { get; set; }
@@ -26,7 +27,7 @@ namespace ahis.template.application.Features.CountryFeatures.Command
         public string CountryCode3 { get; set; }
     }
 
-    public class AddCountryCommandHandler : IRequestHandler<AddCountryCommand, ApiResponse<object>>
+    public class AddCountryCommandHandler : IRequestHandler<AddCountryCommand, Result<object>>
     {
         private readonly ICountryRepository _countryRepository;
         private readonly ILogger<AddCountryCommandHandler> _logger;
@@ -37,42 +38,25 @@ namespace ahis.template.application.Features.CountryFeatures.Command
             _logger = logger;
         }
 
-        public async Task<ApiResponse<object>> Handle(AddCountryCommand command, CancellationToken cancellationToken)
+        public async Task<Result<object>> Handle(AddCountryCommand command, CancellationToken cancellationToken)
         {
-            try
-            {
-                _logger.LogInformation("Handling AddCountryCommandHandler");
 
-                // Map AddCountryCommand (DTO) into Country entity
-                Country countryEntity = new Country
-                { 
-                    CountryFullname = command.CountryFullname,
-                    CountryShortname = command.CountryShortname,
-                    CountryDescription = command.CountryDescription,
-                    CountryCode2 = command.CountryCode2,
-                    CountryCode3 = command.CountryCode3
-                };
+            _logger.LogInformation("Handling AddCountryCommandHandler");
 
-                await _countryRepository.AddAsync(countryEntity);
+            // Map AddCountryCommand (DTO) into Country entity
+            Country countryEntity = new Country
+            { 
+                CountryFullname = command.CountryFullname,
+                CountryShortname = command.CountryShortname,
+                CountryDescription = command.CountryDescription,
+                CountryCode2 = command.CountryCode2,
+                CountryCode3 = command.CountryCode3
+            };
 
-                return ApiResponse<object>.SuccessResponse(null, $"Country ({countryEntity.CountryCode3} - {countryEntity.CountryShortname}) has been added successfully");
-            }
-            catch (Exception ex)
-            {
+            await _countryRepository.AddAsync(countryEntity);
 
-                _logger.LogError(ex, "Error occurred while handling AddCountryCommandHandler");
+            return countryEntity;
 
-
-                // Return error response with details
-                return ApiResponse<object>.ErrorResponse(
-                    message: "Failed to country",
-                    errors: new
-                    {
-                        ExceptionMessage = ex.Message,
-                        InnerException = ex.InnerException?.Message,
-                        StackTrace = ex.StackTrace
-                    });
-            }
             
         }
     }
