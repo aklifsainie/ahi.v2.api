@@ -19,7 +19,18 @@ namespace ahis.template.api.Controllers.v1
             _mediator = mediator;
         }
 
-        [HttpGet("GetAll")]
+
+        /// <summary>
+        /// Get all countries
+        /// </summary>
+        /// <remarks>
+        /// This endpoint returns a list of all active countries.
+        /// </remarks>
+        /// <param name="CountryFullname">Filter only active countries</param>
+        /// <response code="200">Successfully retrieved the list of countries</response>
+        /// <response code="500">Unexpected internal server error</response>
+        /// <returns>This is a return messsage</returns>
+        [HttpGet("get-all")]
         [ProducesResponseType(typeof(ResponseDto<List<CountryVM>>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
@@ -30,14 +41,25 @@ namespace ahis.template.api.Controllers.v1
 
         }
 
-        //[HttpPost("Add")]
-        //[ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
-        //[ProducesResponseType(StatusCodes.Status400BadRequest)]
-        //[ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        //[Produces("application/json")]
-        //public async Task<IActionResult> AddCountry([FromBody] AddCountryCommand command)
-        //{
-        //    return Ok(await _mediator.Send(command));
-        //}
+
+        /// <summary>
+        /// Add country
+        /// </summary>
+        /// <remarks>
+        /// This endpoint handle add country
+        /// </remarks>
+        /// <param name="CountryFullname">The country's fullname</param>
+        /// <response code="200">Successfully added the country</response>
+        /// <response code="500">Unexpected internal server error</response>
+        /// <returns>This is a return messsage</returns>
+        [HttpPost("add")]
+        [ProducesResponseType(typeof(ResponseDto<AddCountryCommand>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [Produces("application/json")]
+        public async Task<IActionResult> AddCountry([FromBody] AddCountryCommand command)
+        {
+            return Response(await _mediator.Send(command));
+        }
     }
 }

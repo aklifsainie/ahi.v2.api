@@ -1,7 +1,6 @@
 ﻿using ahis.template.application.Features.CountryFeatures.Query;
 using ahis.template.domain.Interfaces.Repositories;
 using ahis.template.domain.Models.Entities;
-using Castle.Core.Logging;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -22,11 +21,11 @@ namespace ahis.template.test.TestFeatures.CountryFeature
             var mockRepo = new Mock<ICountryRepository>();
             var mockLogger = new Mock<ILogger<GetAllCountryQueryHandler>>();
 
-            mockRepo.Setup(repo => repo.GetAllAsync())
+            mockRepo.Setup(repo => repo.GetAllAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new List<Country>
                 {
                     new Country
-                    { 
+                    {
                         Id = 1,
                         CountryFullname = "Malaysia",
                         CountryCode2 = "MY",
@@ -41,11 +40,11 @@ namespace ahis.template.test.TestFeatures.CountryFeature
             // Act
             var result = await handler.Handle(new GetAllCountryQuery(), CancellationToken.None);
 
-            // Assert
-            Assert.True(result.Success);
-            Assert.NotNull(result.Data);
-            Assert.Single(result.Data);
-            Assert.Equal("Malaysia", result.Data[0].CountryFullname);
+            // Assert - FluentResults API
+            Assert.True(result.IsSuccess);
+            Assert.NotNull(result.Value);
+            Assert.Single(result.Value);
+            Assert.Equal("Malaysia", result.Value[0].CountryFullname);
         }
 
         [Fact]
@@ -55,7 +54,7 @@ namespace ahis.template.test.TestFeatures.CountryFeature
             var mockRepo = new Mock<ICountryRepository>();
             var mockLogger = new Mock<ILogger<GetAllCountryQueryHandler>>();
 
-            mockRepo.Setup(repo => repo.GetAllAsync())
+            mockRepo.Setup(repo => repo.GetAllAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new List<Country>());
 
             var handler = new GetAllCountryQueryHandler(mockRepo.Object, mockLogger.Object);
@@ -64,10 +63,10 @@ namespace ahis.template.test.TestFeatures.CountryFeature
             var result = await handler.Handle(new GetAllCountryQuery(), CancellationToken.None);
 
             // Assert
-            Assert.True(result.Success);
-            Assert.NotNull(result.Data);
-            Assert.Empty(result.Data);
-            Assert.Equal("No country data found.", result.Message);
+            Assert.True(result.IsSuccess);
+            Assert.NotNull(result.Value);
+            Assert.Empty(result.Value);
+            Assert.Equal("No country data found.", result.Successes.First().Message);
         }
     }
 }

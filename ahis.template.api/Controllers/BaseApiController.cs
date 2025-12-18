@@ -19,7 +19,10 @@ namespace ahis.template.api.Controllers
 
             // Handle success result
             if (result.IsSuccess)
-                return Ok(new ResponseDto<T>(result.ValueOrDefault));
+            {
+                string? message = result.Successes.FirstOrDefault()?.Message;
+                return Ok(new ResponseDto<T>(result.ValueOrDefault, message));
+            }
 
             // Handle FluentValidation errors
             if (result.Errors.Any(x => x is ValidationError))

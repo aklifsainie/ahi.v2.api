@@ -14,7 +14,7 @@ using FluentResults;
 
 namespace ahis.template.application.Features.CountryFeatures.Command
 {
-    public class AddCountryCommand : IRequest<Result<object>>
+    public class AddCountryCommand : IRequest<Result<AddCountryCommand>>
     {
         [Required]
         public string CountryFullname { get; set; }
@@ -27,7 +27,7 @@ namespace ahis.template.application.Features.CountryFeatures.Command
         public string CountryCode3 { get; set; }
     }
 
-    public class AddCountryCommandHandler : IRequestHandler<AddCountryCommand, Result<object>>
+    public class AddCountryCommandHandler : IRequestHandler<AddCountryCommand, Result<AddCountryCommand>>
     {
         private readonly ICountryRepository _countryRepository;
         private readonly ILogger<AddCountryCommandHandler> _logger;
@@ -38,10 +38,9 @@ namespace ahis.template.application.Features.CountryFeatures.Command
             _logger = logger;
         }
 
-        public async Task<Result<object>> Handle(AddCountryCommand command, CancellationToken cancellationToken)
+        public async Task<Result<AddCountryCommand>> Handle(AddCountryCommand command, CancellationToken cancellationToken)
         {
 
-            _logger.LogInformation("Handling AddCountryCommandHandler");
 
             // Map AddCountryCommand (DTO) into Country entity
             Country countryEntity = new Country
@@ -55,9 +54,10 @@ namespace ahis.template.application.Features.CountryFeatures.Command
 
             await _countryRepository.AddAsync(countryEntity);
 
-            return countryEntity;
+            return Result.Ok(command)
+                .WithSuccess("Country has been added successfully.");
 
-            
+
         }
     }
 }
