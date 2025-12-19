@@ -1,6 +1,6 @@
 ﻿using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
-using ahis.template.domain.Interfaces.Repositories;
+using ahis.template.application.Interfaces.Repositories;
 using ahis.template.domain.Models.Entities;
 using ahis.template.domain.Models.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -34,7 +34,7 @@ namespace ahis.template.application.Features.CountryFeatures.Query
             _logger.LogInformation("Handling GetAllCountryQueryHandler");
 
             // Get data from repository
-            var categoryEntity = await _countryRepository.GetAllAsync(); // optional params allowed
+            var categoryEntity = await _countryRepository.GetAllAsync();
 
             // If no data found
             if (categoryEntity == null || !categoryEntity.Any())

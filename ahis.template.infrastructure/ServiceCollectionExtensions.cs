@@ -1,5 +1,5 @@
 ﻿using ahis.template.application.Shared.Mediator;
-using ahis.template.domain.Interfaces.Repositories;
+using ahis.template.application.Interfaces.Repositories;
 using ahis.template.infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using System;

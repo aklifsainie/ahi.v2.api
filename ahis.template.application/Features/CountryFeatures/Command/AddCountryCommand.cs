@@ -1,6 +1,6 @@
 ﻿using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
-using ahis.template.domain.Interfaces.Repositories;
+using ahis.template.application.Interfaces.Repositories;
 using ahis.template.domain.Models.Entities;
 using ahis.template.domain.Models.ViewModels;
 using Microsoft.Extensions.Logging;

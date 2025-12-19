@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ahis.template.domain.Interfaces.Repositories
+namespace ahis.template.application.Interfaces.Repositories
 {
     public interface ICountryRepository : IGenericRepository<Country>
     {
