@@ -1,43 +1,38 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections;
+using FluentValidation;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using FluentValidation;
 using FluentResults;
 using ahis.template.application.Shared.Errors;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace ahis.template.application.Shared.Mediator
 {
-    public class SimpleMediator : IMediator
+    public class ValidationBehavior<TRequest, TResponse> : IRequestHandler<TRequest, TResponse> where TRequest : IRequest<TResponse>
     {
+        private readonly IEnumerable<IValidator<TRequest>> _validators;
         private readonly IServiceProvider _serviceProvider;
 
-        public SimpleMediator(IServiceProvider serviceProvider)
+        public ValidationBehavior(IEnumerable<IValidator<TRequest>> validators, IServiceProvider serviceProvider)
         {
+            _validators = validators;
             _serviceProvider = serviceProvider;
         }
 
-        public async Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
+        public async Task<TResponse> Handle(TRequest request, CancellationToken cancellationToken)
         {
-            // Run FluentValidation validators if any
-            var validatorType = typeof(IValidator<>).MakeGenericType(request.GetType());
-            var enumerableValidatorType = typeof(IEnumerable<>).MakeGenericType(validatorType);
-            var validatorsObj = _serviceProvider.GetService(enumerableValidatorType) as IEnumerable;
-
-            if (validatorsObj != null)
+            if (_validators.Any())
             {
+                var context = new FluentValidation.ValidationContext<TRequest>(request);
                 var failures = new List<FluentValidation.Results.ValidationFailure>();
 
-                foreach (var validator in validatorsObj)
+                foreach (var validator in _validators)
                 {
-                    // call ValidateAsync dynamically
-                    dynamic dynValidator = validator!;
-                    var validationResult = await dynValidator.ValidateAsync((dynamic)request, cancellationToken);
-                    if (!validationResult.IsValid)
-                        failures.AddRange(validationResult.Errors);
+                    var result = await validator.ValidateAsync(context, cancellationToken);
+                    if (!result.IsValid)
+                        failures.AddRange(result.Errors);
                 }
 
                 if (failures.Any())
@@ -49,6 +44,7 @@ namespace ahis.template.application.Shared.Mediator
                     }
 
                     var resultType = typeof(TResponse);
+
                     if (resultType.IsGenericType && resultType.GetGenericTypeDefinition() == typeof(Result<>))
                     {
                         var valueType = resultType.GetGenericArguments()[0];
@@ -57,7 +53,7 @@ namespace ahis.template.application.Shared.Mediator
                         return (TResponse)resultFail!;
                     }
 
-                    throw new InvalidOperationException("SimpleMediator validation only supports handlers that return FluentResults.Result<T>.");
+                    throw new InvalidOperationException("ValidationBehavior only supports handlers that return FluentResults.Result<T>.");
                 }
             }
 
