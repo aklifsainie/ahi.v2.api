@@ -1,3 +1,4 @@
+using ahis.template.identity;
 using ahis.template.infrastructure;
 using ahis.template.infrastructure.Contexts;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ builder.Services.AddInfrastructure();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddIdentityServices(connectionString);
 
 builder.Services.AddControllers();
 

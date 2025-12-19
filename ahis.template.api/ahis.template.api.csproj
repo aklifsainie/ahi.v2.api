@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ahis.template.application\ahis.template.application.csproj" />
+    <ProjectReference Include="..\ahis.template.identity\ahis.template.identity.csproj" />
     <ProjectReference Include="..\ahis.template.infrastructure\ahis.template.infrastructure.csproj" />
   </ItemGroup>
 
