@@ -1,5 +1,5 @@
 ﻿using ahis.template.application.Features.CountryFeatures.Query;
-using ahis.template.domain.Interfaces.Repositories;
+using ahis.template.application.Interfaces.Repositories;
 using ahis.template.domain.Models.Entities;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ahis.template.test.TestFeatures.CountryFeature

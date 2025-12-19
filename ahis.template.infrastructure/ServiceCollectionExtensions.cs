@@ -1,5 +1,6 @@
 ﻿using ahis.template.application.Shared.Mediator;
 using ahis.template.application.Interfaces.Repositories;
+using ahis.template.application.Interfaces.UnitOfWork;
 using ahis.template.infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -15,6 +16,8 @@ namespace ahis.template.infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services)
         {
+            // Register UnitOfWork (fully-qualified to avoid namespace/type name collision)
+            services.AddScoped<IUnitOfWork, ahis.template.infrastructure.UnitOfWork.UnitOfWork>();
 
             // Register repositories
             services.AddScoped<ICountryRepository, CountryRepository>();
