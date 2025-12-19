@@ -15,8 +15,20 @@ namespace ahis.template.identity.Models
 
         public string FullName => string.Join(' ', new[] { FirstName, LastName }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
-        public DateTime DateOfBirth { get; set; }
+        /// <summary>
+        /// The user's date of birth.
+        /// </summary>
+        public DateTime? DateOfBirth { get; set; }
 
+        /// <summary>
+        /// Whether the user has completed initial account configuration (e.g. profile setup).
+        /// </summary>
+        public bool IsAccountConfigured { get; set; } = false;
+
+        /// <summary>
+        /// The date of the user verified their email address.
+        /// </summary>
+        public DateTime? EmailVerifiedAt { get; set; }
 
 
         // Two-factor authentication (TOTP) support for authenticator apps (e.g. Google Authenticator)
