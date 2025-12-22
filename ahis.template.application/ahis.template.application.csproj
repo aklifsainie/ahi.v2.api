@@ -16,6 +16,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ahis.template.domain\ahis.template.domain.csproj" />
+    <ProjectReference Include="..\ahis.template.identity\ahis.template.identity.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Features\AccountFeatures\Queries\" />
+    <Folder Include="Features\AuthenticationFeatures\Commands\" />
+    <Folder Include="Features\AuthenticationFeatures\Queries\" />
   </ItemGroup>
 
 </Project>
