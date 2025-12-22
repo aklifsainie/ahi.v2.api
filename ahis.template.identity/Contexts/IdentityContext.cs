@@ -11,6 +11,8 @@ namespace ahis.template.identity.Contexts
         {
         }
 
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -18,37 +20,46 @@ namespace ahis.template.identity.Contexts
             // Rename default AspNet* tables to remove AspNet prefix
             builder.Entity<ApplicationUser>(b =>
             {
-                b.ToTable("IdentityUser");
+                b.ToTable("Users");
             });
 
             builder.Entity<IdentityRole<int>>(b =>
             {
-                b.ToTable("IdentityRole");
+                b.ToTable("Roles");
             });
 
             builder.Entity<IdentityUserRole<int>>(b =>
             {
-                b.ToTable("IdentityUserRole");
+                b.ToTable("UserRoles");
             });
 
             builder.Entity<IdentityUserClaim<int>>(b =>
             {
-                b.ToTable("IdentityUserClaim");
+                b.ToTable("UserClaims");
             });
 
             builder.Entity<IdentityUserLogin<int>>(b =>
             {
-                b.ToTable("IdentityUserLogin");
+                b.ToTable("UserLogins");
             });
 
             builder.Entity<IdentityRoleClaim<int>>(b =>
             {
-                b.ToTable("IdentityRoleClaim");
+                b.ToTable("RoleClaims");
             });
 
             builder.Entity<IdentityUserToken<int>>(b =>
             {
-                b.ToTable("IdentityUserToken");
+                b.ToTable("UserTokens");
+            });
+
+            builder.Entity<RefreshToken>(b =>
+            {
+                b.ToTable("RefreshTokens");
+                b.HasKey(x => x.Id);
+                b.Property(x => x.Token).IsRequired().HasMaxLength(450);
+                b.Property(x => x.IsRevoked).HasDefaultValue(false);
+                b.HasIndex(x => x.UserId);
             });
         }
     }
