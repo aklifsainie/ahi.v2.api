@@ -1,5 +1,7 @@
 using ahis.template.application.Shared.Mediator;
+using ahis.template.identity.Interfaces;
 using FluentResults;
+using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
 
 namespace ahis.template.application.Features.AccountFeatures.Commands
@@ -12,5 +14,24 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
         [Required]
         [MinLength(8)]
         public string Password { get; set; } = null!;
+    }
+
+
+    public class SetPasswordCommandHandler : IRequestHandler<SetPasswordCommand, Result<object>>
+    {
+        private readonly IAccountService _accountService;
+        private readonly ILogger<SetPasswordCommandHandler> _logger;
+
+        public SetPasswordCommandHandler(IAccountService accountService, ILogger<SetPasswordCommandHandler> logger)
+        {
+            _accountService = accountService;
+            _logger = logger;
+        }
+
+        public async Task<Result<object>> Handle(SetPasswordCommand request, CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Setting password for user {UserId}", request.UserId);
+            return await _accountService.SetPasswordFirstTimeAsync(request.UserId, request.Password);
+        }
     }
 }

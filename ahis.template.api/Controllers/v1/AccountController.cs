@@ -47,11 +47,11 @@ namespace ahis.template.api.Controllers.v1
             return Response(await _mediator.Send(command));
         }
 
-        [HttpPost("enable-authenticator")]
-        public async Task<IActionResult> EnableAuthenticator([FromBody] VerifyTwoFactorCommand command)
-        {
-            return Response(await _mediator.Send(command));
-        }
+        //[HttpPost("enable-authenticator")]
+        //public async Task<IActionResult> EnableAuthenticator([FromBody] VerifyTwoFactorCommand command)
+        //{
+        //    return Response(await _mediator.Send(command));
+        //}
 
         [HttpPost("generate-password-reset-token")]
         public async Task<IActionResult> GeneratePasswordResetToken([FromBody] GeneratePasswordResetTokenCommand command)
