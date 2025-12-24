@@ -199,7 +199,7 @@ namespace ahis.template.identity.Services
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SigningKey"] ?? throw new InvalidOperationException("Jwt:SigningKey not configured")));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expiry = DateTime.UtcNow.AddSeconds(int.Parse(_configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"));
+            var expiry = DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:AccessTokenExpiryMinutes"] ?? "3600"));
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"] ?? "",

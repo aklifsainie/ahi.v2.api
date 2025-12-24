@@ -3,6 +3,7 @@ using ahis.template.application.Features.CountryFeatures.Query;
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
 using ahis.template.domain.Models.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,6 +11,7 @@ namespace ahis.template.api.Controllers.v1
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class CountryController : BaseApiController
     {
         private readonly IMediator _mediator;

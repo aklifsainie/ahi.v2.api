@@ -9,10 +9,10 @@ using System.Threading.Tasks;
 
 namespace ahis.template.application.Features.AuthenticationFeatures.Commands
 {
-    public record LoginCommand(string UserNameOrEmail,string Password,bool RememberMe) : IRequest<Result<AuthResponseDto>>;
+    public record LoginCommand(string UserNameOrEmail,string Password,bool RememberMe) : IRequest<Result<string>>;
 
 
-    public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResponseDto>>
+    public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<string>>
     {
         private readonly IAuthenticationService _authenticationService;
 
@@ -23,12 +23,14 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
         }
 
 
-        public async Task<Result<AuthResponseDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
+        public async Task<Result<string>> Handle(LoginCommand request, CancellationToken cancellationToken)
         {
-            return await _authenticationService.LoginAsync(
+            var response = await _authenticationService.LoginAsync(
             request.UserNameOrEmail,
             request.Password,
             request.RememberMe);
+
+            return Result.Ok<string>(response.Value.AccessToken).WithSuccess("User logged in");
         }
     }
 }
