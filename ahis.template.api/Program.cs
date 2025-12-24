@@ -1,12 +1,16 @@
+using ahis.template.application.Services;
 using ahis.template.identity;
 using ahis.template.infrastructure;
 using ahis.template.infrastructure.Contexts;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddScoped<IEmailSender, EmailSender>();
+
 
 // Add assemblies service extentions
 builder.Services.AddInfrastructure();

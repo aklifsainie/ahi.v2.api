@@ -20,12 +20,12 @@ namespace ahis.template.identity
         {
             services.AddScoped<IAccountService, AccountService>();
             services.AddScoped<IAuthenticationService, AuthenticationService>();
-            services.AddScoped<IEmailSender, EmailSender>();
+           
 
             services.AddDbContext<IdentityContext>(
                 options => options.UseSqlServer(connectionString)
                 );
-            services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
+            services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
                 options.Tokens.AuthenticatorTokenProvider = TokenOptions.DefaultAuthenticatorProvider;
                 options.SignIn.RequireConfirmedAccount = true;

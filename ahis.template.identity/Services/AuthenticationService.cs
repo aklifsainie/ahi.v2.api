@@ -99,10 +99,9 @@ namespace ahis.template.identity.Services
         {
             try
             {
-                if (!int.TryParse(userId, out var id))
-                    return Result.Fail<AuthResponseDto>("Invalid user id.");
 
-                var stored = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.UserId == id && x.Token == refreshToken && !x.IsRevoked);
+
+                var stored = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.UserId == userId && x.Token == refreshToken && !x.IsRevoked);
                 if (stored == null || stored.ExpiresAt < DateTime.UtcNow)
                     return Result.Fail<AuthResponseDto>("Invalid or expired refresh token.");
 
@@ -171,10 +170,8 @@ namespace ahis.template.identity.Services
 
         public async Task<Result> RevokeRefreshTokensAsync(string userId)
         {
-            if (!int.TryParse(userId, out var id))
-                return Result.Fail("Invalid user id.");
 
-            var tokens = await _context.RefreshTokens.Where(x => x.UserId == id && !x.IsRevoked).ToListAsync();
+            var tokens = await _context.RefreshTokens.Where(x => x.UserId == userId && !x.IsRevoked).ToListAsync();
             tokens.ForEach(t => t.IsRevoked = true);
             _context.RefreshTokens.UpdateRange(tokens);
             await _context.SaveChangesAsync();
@@ -224,7 +221,7 @@ namespace ahis.template.identity.Services
             return (token, expires);
         }
 
-        private async Task StoreRefreshTokenAsync(int userId, string token, DateTime expiresAt)
+        private async Task StoreRefreshTokenAsync(string userId, string token, DateTime expiresAt)
         {
             var rt = new RefreshToken
             {

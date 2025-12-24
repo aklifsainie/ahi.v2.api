@@ -5,7 +5,7 @@ using System;
 
 namespace ahis.template.identity.Models
 {
-    public class ApplicationUser : IdentityUser<int>
+    public class ApplicationUser : IdentityUser
     {
         [MaxLength(100)]
         public string? FirstName { get; set; }

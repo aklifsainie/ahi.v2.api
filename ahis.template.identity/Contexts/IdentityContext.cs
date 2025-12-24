@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ahis.template.identity.Contexts
 {
-    public class IdentityContext : IdentityDbContext<ApplicationUser, IdentityRole<int>, int>
+    public class IdentityContext : IdentityDbContext<ApplicationUser>
     {
         public IdentityContext(DbContextOptions<IdentityContext> options) : base(options)
         {
@@ -20,37 +20,38 @@ namespace ahis.template.identity.Contexts
             // Rename default AspNet* tables to remove AspNet prefix
             builder.Entity<ApplicationUser>(b =>
             {
-                b.ToTable("Users");
+                b.ToTable("IdentityUsers");
             });
 
-            builder.Entity<IdentityRole<int>>(b =>
+            builder.Entity<IdentityRole<string>>(b =>
             {
-                b.ToTable("Roles");
+                b.ToTable("IdentityRoles");
             });
 
-            builder.Entity<IdentityUserRole<int>>(b =>
+            builder.Entity<IdentityUserRole<string>>(b =>
             {
-                b.ToTable("UserRoles");
+                b.ToTable("IdentityUserRoles");
             });
 
-            builder.Entity<IdentityUserClaim<int>>(b =>
+            builder.Entity<IdentityUserClaim<string>>(b =>
             {
-                b.ToTable("UserClaims");
+                b.ToTable("IdentityUserClaims");
             });
 
-            builder.Entity<IdentityUserLogin<int>>(b =>
+            builder.Entity<IdentityUserLogin<string>>(b =>
             {
-                b.ToTable("UserLogins");
+                b.ToTable("IdentityUserLogins");
             });
 
-            builder.Entity<IdentityRoleClaim<int>>(b =>
+            builder.Entity<IdentityRoleClaim<string>>(b =>
             {
-                b.ToTable("RoleClaims");
+                b.ToTable("IdentityRoleClaims");
             });
 
-            builder.Entity<IdentityUserToken<int>>(b =>
+
+            builder.Entity<IdentityUserToken<string>>(b =>
             {
-                b.ToTable("UserTokens");
+                b.ToTable("IdentityUserTokens");
             });
 
             builder.Entity<RefreshToken>(b =>
