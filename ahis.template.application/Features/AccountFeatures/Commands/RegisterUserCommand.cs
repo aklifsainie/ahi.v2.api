@@ -38,7 +38,7 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
             if (!res.IsSuccess)
                 return Result.Fail<object>(res.Errors.FirstOrDefault()?.Message ?? "Registration failed.");
 
-            return Result.Ok<object>(res.Value);
+            return Result.Ok<object>(res.Value).WithSuccess($"Username {request.UserName} has been register");
         }
     }
 }

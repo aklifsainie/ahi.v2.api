@@ -122,8 +122,6 @@ namespace ahis.template.identity.Services
         {
             try
             {
-                if (!int.TryParse(userId, out var id))
-                    return Result.Fail("Invalid user id.");
 
                 var user = await _userManager.FindByIdAsync(userId);
                 if (user == null)

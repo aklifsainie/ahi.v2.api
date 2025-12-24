@@ -33,7 +33,7 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
             if (!res.IsSuccess)
                 return Result.Fail<object>(res.Errors.FirstOrDefault()?.Message ?? "Confirm email failed.");
 
-            return Result.Ok<object>(null);
+            return Result.Ok<object>(true).WithSuccess("Email has been verified");
         }
     }
 }

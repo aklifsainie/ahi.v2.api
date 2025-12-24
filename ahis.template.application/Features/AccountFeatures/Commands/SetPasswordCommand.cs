@@ -31,7 +31,13 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
         public async Task<Result<object>> Handle(SetPasswordCommand request, CancellationToken cancellationToken)
         {
             _logger.LogInformation("Setting password for user {UserId}", request.UserId);
-            return await _accountService.SetPasswordFirstTimeAsync(request.UserId, request.Password);
+            var response = await _accountService.SetPasswordFirstTimeAsync(request.UserId, request.Password);
+
+            if (!response.IsSuccess)
+                return Result.Fail<object>(response.Errors.FirstOrDefault()?.Message ?? "Registration failed.");
+
+
+            return Result.Ok<object>(true).WithSuccess("Password has been saved");
         }
     }
 }
