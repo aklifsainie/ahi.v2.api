@@ -1,4 +1,5 @@
 ﻿using ahis.template.application.Features.AuthenticationFeatures.Commands;
+using ahis.template.application.Features.AuthenticationFeatures.Queries;
 using ahis.template.application.Shared.Mediator;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,13 @@ namespace ahis.template.api.Controllers.v1
         public async Task<IActionResult> Login(LoginCommand command)
         {
             return Response(await _mediator.Send(command));
+        }
+
+        [HttpPost("decode-token")]
+        public async Task<IActionResult> DecodeToken([FromBody] string token)
+        {
+            var result = await _mediator.Send(new DecodeTokenQuery(token));
+            return Response(result);
         }
     }
 }

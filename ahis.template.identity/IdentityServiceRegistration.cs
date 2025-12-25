@@ -5,10 +5,12 @@ using ahis.template.identity.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -25,11 +27,6 @@ namespace ahis.template.identity
             services.AddDbContext<IdentityContext>(
                 options => options.UseSqlServer(connectionString)
                 );
-            services.AddIdentity<ApplicationUser, IdentityRole>(options =>
-            {
-                options.Tokens.AuthenticatorTokenProvider = TokenOptions.DefaultAuthenticatorProvider;
-                options.SignIn.RequireConfirmedAccount = true;
-            }).AddEntityFrameworkStores<IdentityContext>().AddDefaultTokenProviders();
 
             return services;
         }

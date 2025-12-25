@@ -22,7 +22,6 @@
 
   <ItemGroup>
     <Folder Include="Features\AccountFeatures\Queries\" />
-    <Folder Include="Features\AuthenticationFeatures\Queries\" />
   </ItemGroup>
 
 </Project>

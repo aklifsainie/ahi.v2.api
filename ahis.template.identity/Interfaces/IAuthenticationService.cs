@@ -1,5 +1,7 @@
 ﻿using FluentResults;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace ahis.template.identity.Interfaces
@@ -11,6 +13,9 @@ namespace ahis.template.identity.Interfaces
         Task<Result<AuthResponseDto>> RefreshTokenAsync(string userId, string refreshToken);
         Task<Result<AuthResponseDto>> VerifyTwoFactorAsync(string userId, string provider, string code, bool rememberMachine = false);
         Task<Result> RevokeRefreshTokensAsync(string userId);
+
+        JwtPayload DecodeToken(string token);
+        IEnumerable<Claim> GetClaims(string token);
     }
 
     public record AuthResponseDto
