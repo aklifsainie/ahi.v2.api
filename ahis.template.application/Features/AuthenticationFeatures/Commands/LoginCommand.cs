@@ -30,7 +30,7 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
             request.Password,
             request.RememberMe);
 
-            return Result.Ok<AuthResponseDto>(response.Value).WithSuccess("User logged in");
+            return Result.Ok<AuthResponseDto>(response.Value);
 
 
         }
