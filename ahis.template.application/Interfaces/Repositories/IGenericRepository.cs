@@ -102,28 +102,28 @@ namespace ahis.template.application.Interfaces.Repositories
 
         #endregion
 
-        #region Save & Transaction
+        //#region Save & Transaction
 
-        /// <summary>
-        /// Persist changes to the database.
-        /// </summary>
-        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+        ///// <summary>
+        ///// Persist changes to the database.
+        ///// </summary>
+        //Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Begin a database transaction.
-        /// </summary>
-        Task BeginTransactionAsync(CancellationToken cancellationToken = default);
+        ///// <summary>
+        ///// Begin a database transaction.
+        ///// </summary>
+        //Task BeginTransactionAsync(CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Commit the current database transaction.
-        /// </summary>
-        Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+        ///// <summary>
+        ///// Commit the current database transaction.
+        ///// </summary>
+        //Task CommitTransactionAsync(CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Rollback the current database transaction.
-        /// </summary>
-        Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+        ///// <summary>
+        ///// Rollback the current database transaction.
+        ///// </summary>
+        //Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
 
-        #endregion
+        //#endregion
     }
 }

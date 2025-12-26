@@ -1,7 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-namespace ahis.template.application.Interfaces.UnitOfWork
+namespace ahis.template.domain.SharedKernel
 {
     /// <summary>
     /// Unit of Work abstraction for coordinating Save and Transaction operations across repositories.

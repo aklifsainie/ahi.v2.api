@@ -2,6 +2,7 @@
 using ahis.template.identity.Interfaces;
 using ahis.template.identity.Models;
 using ahis.template.identity.Services;
+using ahis.template.identity.SharedKernel;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ namespace ahis.template.identity
         {
             services.AddScoped<IAccountService, AccountService>();
             services.AddScoped<IAuthenticationService, AuthenticationService>();
+            services.AddScoped<IdentityUnitOfWork>();
            
 
             services.AddDbContext<IdentityContext>(

@@ -23,4 +23,8 @@
     <Folder Include="Migrations\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ahis.template.domain\ahis.template.domain.csproj" />
+  </ItemGroup>
+
 </Project>

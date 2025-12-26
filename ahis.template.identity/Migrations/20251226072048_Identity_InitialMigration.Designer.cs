@@ -12,8 +12,8 @@ using ahis.template.identity.Contexts;
 namespace ahis.template.identity.Migrations
 {
     [DbContext(typeof(IdentityContext))]
-    [Migration("20251224012151_Identity_Initial")]
-    partial class Identity_Initial
+    [Migration("20251226072048_Identity_InitialMigration")]
+    partial class Identity_InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -307,6 +307,9 @@ namespace ahis.template.identity.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Token")
                         .IsRequired()

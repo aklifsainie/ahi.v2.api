@@ -6,6 +6,7 @@ using ahis.template.identity.Models;
 using ahis.template.identity.Services;
 using ahis.template.infrastructure;
 using ahis.template.infrastructure.Contexts;
+using ahis.template.infrastructure.SharedKernel;
 using FluentResults;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -30,6 +31,7 @@ namespace ahis.template.api
 
             // Add services to the container.
             builder.Services.AddScoped<IEmailSender, EmailSender>();
+            builder.Services.AddScoped<UnitOfWork>();
 
 
             // Add assemblies service extentions

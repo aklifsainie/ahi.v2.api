@@ -15,6 +15,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using FluentResults;
+using ahis.template.domain.SharedKernel;
+using ahis.template.identity.SharedKernel;
 
 namespace ahis.template.identity.Services
 {
@@ -23,6 +25,7 @@ namespace ahis.template.identity.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IdentityContext _context;
+        private readonly IdentityUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthenticationService> _logger;
 
@@ -30,55 +33,74 @@ namespace ahis.template.identity.Services
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             IdentityContext context,
+            IdentityUnitOfWork unitOfWork,
             IConfiguration configuration,
             ILogger<AuthenticationService> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _context = context;
+            _unitOfWork = unitOfWork;
             _configuration = configuration;
             _logger = logger;
         }
 
         public async Task<Result<AuthResponseDto>> LoginAsync(string userNameOrEmail, string password, bool rememberMe = false)
         {
-            var user = await _userManager.FindByNameAsync(userNameOrEmail) ?? await _userManager.FindByEmailAsync(userNameOrEmail);
-            if (user == null)
-                return Result.Fail<AuthResponseDto>("Invalid credentials.");
-
-            if (!user.IsActive || user.IsDeleted)
-                return Result.Fail<AuthResponseDto>("User is not active.");
-
-            var signInResult = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
-            if (!signInResult.Succeeded)
+            
+            try
             {
-                if (signInResult.IsLockedOut)
-                    return Result.Fail<AuthResponseDto>("User is locked out.");
+                var user = await _userManager.FindByNameAsync(userNameOrEmail) ?? await _userManager.FindByEmailAsync(userNameOrEmail);
+                if (user == null)
+                    return Result.Fail<AuthResponseDto>("Invalid credentials.");
 
-                if (signInResult.RequiresTwoFactor)
-                    return Result.Ok(new AuthResponseDto { RequiresTwoFactor = true, UserId = user.Id.ToString() });
+                if (!user.IsActive || user.IsDeleted)
+                    return Result.Fail<AuthResponseDto>("User is not active.");
 
-                return Result.Fail<AuthResponseDto>("Invalid credentials.");
+                var signInResult = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
+                if (!signInResult.Succeeded)
+                {
+                    if (signInResult.IsLockedOut)
+                        return Result.Fail<AuthResponseDto>("User is locked out.");
+
+                    if (signInResult.RequiresTwoFactor)
+                        return Result.Ok(new AuthResponseDto { RequiresTwoFactor = true, UserId = user.Id.ToString() });
+
+                    return Result.Fail<AuthResponseDto>("Invalid credentials.");
+                }
+
+                // create tokens
+                var accessToken = await GenerateJwtTokenAsync(user);
+                var (refreshToken, refreshExpiresAt) = GenerateRefreshToken();
+
+                // persist refresh token
+
+                await _unitOfWork.BeginTransactionAsync();
+
+                await StoreRefreshTokenAsync(user.Id, refreshToken, refreshExpiresAt);
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                var response = new AuthResponseDto
+                {
+                    AccessToken = accessToken,
+                    ExpiresInSeconds = int.Parse(_configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"),
+                    RefreshToken = refreshToken,
+                    RefreshTokenExpiresAt = refreshExpiresAt,
+                    UserId = user.Id.ToString(),
+                    RequiresTwoFactor = false
+                };
+
+                return Result.Ok(response);
             }
-
-            // create tokens
-            var accessToken = await GenerateJwtTokenAsync(user);
-            var (refreshToken, refreshExpiresAt) = GenerateRefreshToken();
-
-            // persist refresh token
-            await StoreRefreshTokenAsync(user.Id, refreshToken, refreshExpiresAt);
-
-            var response = new AuthResponseDto
+            catch (Exception ex)
             {
-                AccessToken = accessToken,
-                ExpiresInSeconds = int.Parse(_configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"),
-                RefreshToken = refreshToken,
-                RefreshTokenExpiresAt = refreshExpiresAt,
-                UserId = user.Id.ToString(),
-                RequiresTwoFactor = false
-            };
-
-            return Result.Ok(response);
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Login failed");
+                return Result.Fail<AuthResponseDto>("Login failed.");
+            }
+            
         }
 
         public async Task<Result> LogoutAsync()
@@ -99,84 +121,160 @@ namespace ahis.template.identity.Services
         {
             try
             {
+                // Fetch token first (NO transaction yet)
+                var storedToken = await _context.RefreshTokens
+                    .FirstOrDefaultAsync(x =>
+                        x.UserId == userId &&
+                        x.Token == refreshToken);
 
+                if (storedToken == null)
+                    return Result.Fail<AuthResponseDto>("Invalid refresh token.");
 
-                var stored = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.UserId == userId && x.Token == refreshToken && !x.IsRevoked);
-                if (stored == null || stored.ExpiresAt < DateTime.UtcNow)
-                    return Result.Fail<AuthResponseDto>("Invalid or expired refresh token.");
+                // Detect reuse (token replay attack)
+                if (storedToken.IsRevoked)
+                {
+                    _logger.LogWarning(
+                        "Refresh token reuse detected for user {UserId}", userId);
+
+                    await RevokeRefreshTokensAsync(userId);
+                    return Result.Fail<AuthResponseDto>(
+                        "Refresh token reuse detected. All sessions revoked.");
+                }
+
+                // Expiry validation
+                if (storedToken.ExpiresAt < DateTime.UtcNow)
+                    return Result.Fail<AuthResponseDto>("Expired refresh token.");
 
                 var user = await _userManager.FindByIdAsync(userId);
                 if (user == null)
                     return Result.Fail<AuthResponseDto>("User not found.");
 
-                // create new access token
+                // Begin atomic operation
+                await _unitOfWork.BeginTransactionAsync();
+
+                // Rotate tokens
+                storedToken.IsRevoked = true;
+                storedToken.RevokedAt = DateTime.UtcNow;
+
                 var accessToken = await GenerateJwtTokenAsync(user);
                 var (newRefreshToken, newRefreshExpiresAt) = GenerateRefreshToken();
 
-                // revoke old and store new
-                stored.IsRevoked = true;
-                _context.RefreshTokens.Update(stored);
-                await StoreRefreshTokenAsync(user.Id, newRefreshToken, newRefreshExpiresAt);
-                await _context.SaveChangesAsync();
+                await StoreRefreshTokenAsync(
+                    user.Id,
+                    newRefreshToken,
+                    newRefreshExpiresAt);
+
+                // 6️⃣ Commit once
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                return Result.Ok(new AuthResponseDto
+                {
+                    AccessToken = accessToken,
+                    ExpiresInSeconds =
+                        int.Parse(_configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"),
+                    RefreshToken = newRefreshToken,
+                    RefreshTokenExpiresAt = newRefreshExpiresAt,
+                    UserId = user.Id.ToString()
+                });
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+
+                _logger.LogError(
+                    ex,
+                    "RefreshTokenAsync failed for user {UserId}",
+                    userId);
+
+                return Result.Fail<AuthResponseDto>("Failed to refresh token.");
+            }
+        }
+
+
+        public async Task<Result<AuthResponseDto>> VerifyTwoFactorAsync(string userId, string provider, string code, bool rememberMachine = false)
+        {
+            await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                var user = await _userManager.FindByIdAsync(userId);
+                if (user == null)
+                    return Result.Fail<AuthResponseDto>("User not found.");
+
+                // TwoFactorAuthenticatorSignInAsync signature: (string code, bool rememberClient, bool rememberBrowser)
+                var valid = await _signInManager.TwoFactorAuthenticatorSignInAsync(code, rememberMachine, rememberMachine);
+                if (!valid.Succeeded)
+                {
+                    return Result.Fail<AuthResponseDto>("Invalid two-factor verification code.");
+                }
+
+                // successful 2FA, return tokens
+                var accessToken = await GenerateJwtTokenAsync(user);
+                var (refreshToken, refreshExpiresAt) = GenerateRefreshToken();
+
+
+                await StoreRefreshTokenAsync(user.Id, refreshToken, refreshExpiresAt);
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
 
                 var response = new AuthResponseDto
                 {
                     AccessToken = accessToken,
                     ExpiresInSeconds = int.Parse(_configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"),
-                    RefreshToken = newRefreshToken,
-                    RefreshTokenExpiresAt = newRefreshExpiresAt,
+                    RefreshToken = refreshToken,
+                    RefreshTokenExpiresAt = refreshExpiresAt,
                     UserId = user.Id.ToString(),
+                    RequiresTwoFactor = false
                 };
 
                 return Result.Ok(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "RefreshTokenAsync failed");
-                return Result.Fail<AuthResponseDto>("Failed to refresh token.");
+
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Login failed");
+                return Result.Fail<AuthResponseDto>("Verify 2FA failed.");
             }
-        }
-
-        public async Task<Result<AuthResponseDto>> VerifyTwoFactorAsync(string userId, string provider, string code, bool rememberMachine = false)
-        {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-                return Result.Fail<AuthResponseDto>("User not found.");
-
-            // TwoFactorAuthenticatorSignInAsync signature: (string code, bool rememberClient, bool rememberBrowser)
-            var valid = await _signInManager.TwoFactorAuthenticatorSignInAsync(code, rememberMachine, rememberMachine);
-            if (!valid.Succeeded)
-            {
-                return Result.Fail<AuthResponseDto>("Invalid two-factor verification code.");
-            }
-
-            // successful 2FA, return tokens
-            var accessToken = await GenerateJwtTokenAsync(user);
-            var (refreshToken, refreshExpiresAt) = GenerateRefreshToken();
-            await StoreRefreshTokenAsync(user.Id, refreshToken, refreshExpiresAt);
-
-            var response = new AuthResponseDto
-            {
-                AccessToken = accessToken,
-                ExpiresInSeconds = int.Parse(_configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"),
-                RefreshToken = refreshToken,
-                RefreshTokenExpiresAt = refreshExpiresAt,
-                UserId = user.Id.ToString(),
-                RequiresTwoFactor = false
-            };
-
-            return Result.Ok(response);
+            
         }
 
         public async Task<Result> RevokeRefreshTokensAsync(string userId)
         {
+            await _unitOfWork.BeginTransactionAsync();
 
-            var tokens = await _context.RefreshTokens.Where(x => x.UserId == userId && !x.IsRevoked).ToListAsync();
-            tokens.ForEach(t => t.IsRevoked = true);
-            _context.RefreshTokens.UpdateRange(tokens);
-            await _context.SaveChangesAsync();
+            try
+            {
+                var tokens = await _context.RefreshTokens
+                    .Where(x => x.UserId == userId && !x.IsRevoked)
+                    .ToListAsync();
 
-            return Result.Ok();
+                if (!tokens.Any())
+                    return Result.Ok(); // idempotent behavior
+
+                foreach (var token in tokens)
+                {
+                    token.IsRevoked = true;
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                _logger.LogInformation(
+                    "Revoked {Count} refresh tokens for user {UserId}",
+                    tokens.Count,
+                    userId);
+
+                return Result.Ok();
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Failed to revoke refresh tokens for user {UserId}", userId);
+                return Result.Fail("Failed to revoke refresh tokens.");
+            }
         }
 
         #region Helpers
@@ -223,17 +321,19 @@ namespace ahis.template.identity.Services
 
         private async Task StoreRefreshTokenAsync(string userId, string token, DateTime expiresAt)
         {
-            var rt = new RefreshToken
+            var refreshToken = new RefreshToken
             {
                 UserId = userId,
                 Token = token,
                 ExpiresAt = expiresAt,
                 CreatedAt = DateTime.UtcNow,
-                IsRevoked = false
+                IsRevoked = false,
+                RevokedAt = null
             };
-            _context.RefreshTokens.Add(rt);
-            await _context.SaveChangesAsync();
+
+            await _context.RefreshTokens.AddAsync(refreshToken);
         }
+
 
         #endregion
 

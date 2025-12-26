@@ -1,17 +1,20 @@
-﻿using ahis.template.application.Interfaces.UnitOfWork;
-using ahis.template.infrastructure.Contexts;
+﻿using ahis.template.domain.SharedKernel;
+using ahis.template.identity.Contexts;
 using Microsoft.EntityFrameworkCore.Storage;
-using System.Threading;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
-namespace ahis.template.infrastructure.UnitOfWork
+namespace ahis.template.identity.SharedKernel
 {
-    public class UnitOfWork : IUnitOfWork
+    public class IdentityUnitOfWork : IUnitOfWork
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IdentityContext _context;
         private IDbContextTransaction? _currentTransaction;
 
-        public UnitOfWork(ApplicationDbContext context)
+        public IdentityUnitOfWork(IdentityContext context)
         {
             _context = context;
         }

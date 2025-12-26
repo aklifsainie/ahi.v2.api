@@ -1,7 +1,6 @@
 ﻿using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
 using ahis.template.application.Interfaces.Repositories;
-using ahis.template.application.Interfaces.UnitOfWork;
 using ahis.template.domain.Models.Entities;
 using ahis.template.domain.Models.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -14,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentResults;
 using ahis.template.application.Shared.Errors;
+using ahis.template.domain.SharedKernel;
 
 namespace ahis.template.application.Features.CountryFeatures.Command
 {

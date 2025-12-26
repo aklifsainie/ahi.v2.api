@@ -21,6 +21,37 @@ namespace ahis.template.api.Controllers.v1
         public async Task<IActionResult> Login(LoginCommand command)
         {
             return Response(await _mediator.Send(command));
+
+
+            //var result = await _mediator.Send(command);
+
+            //if (result.IsFailed)
+            //    return Response(result);
+
+            //var auth = result.Value;
+
+            //// 🔐 Set refresh token as HttpOnly cookie
+            //Response.Cookies.Append(
+            //    "refresh_token",
+            //    auth.RefreshToken,
+            //    new CookieOptions
+            //    {
+            //        HttpOnly = true,
+            //        Secure = true, // HTTPS only
+            //        SameSite = SameSiteMode.Strict,
+            //        Expires = auth.RefreshTokenExpiresAt,
+            //        Path = "/api/authentication/refresh" // limit exposure
+            //    });
+
+            //// ❗ Remove refresh token from response body
+            //auth.RefreshToken = null;
+
+            //return Ok(new
+            //{
+            //    accessToken = auth.AccessToken,
+            //    expiresInSeconds = auth.ExpiresInSeconds,
+            //    userId = auth.UserId
+            //});
         }
 
         [HttpPost("decode-token")]

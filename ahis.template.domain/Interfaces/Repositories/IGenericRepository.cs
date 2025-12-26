@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ahis.template.domain.Models.Entities;
 
-namespace ahis.template.domain.Interfaces.Repositories
+namespace ahis.template.domain.Interfaces.deletethis
 {
     /// <summary>
     /// Generic repository contract for data access operations.

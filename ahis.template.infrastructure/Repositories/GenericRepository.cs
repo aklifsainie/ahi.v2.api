@@ -1,4 +1,4 @@
-﻿using ahis.template.domain.Interfaces.Repositories;
+﻿using ahis.template.application.Interfaces.Repositories;
 using ahis.template.domain.Models.Entities;
 using ahis.template.infrastructure.Contexts;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace ahis.template.infrastructure.Repositories
 {
     // Implement both application and domain IGenericRepository interfaces to support either namespace usage in the solution.
-    public class GenericRepository<T> : ahis.template.application.Interfaces.Repositories.IGenericRepository<T>, ahis.template.domain.Interfaces.Repositories.IGenericRepository<T> where T : BaseEntity
+    public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
     {
         protected readonly ApplicationDbContext _context;
         protected readonly DbSet<T> _dbSet;
@@ -115,39 +115,39 @@ namespace ahis.template.infrastructure.Repositories
 
         #endregion
 
-        #region Save & Transaction (to satisfy application-level IGenericRepository)
+        //#region Save & Transaction (to satisfy application-level IGenericRepository)
 
-        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-            => await _context.SaveChangesAsync(cancellationToken);
+        //public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        //    => await _context.SaveChangesAsync(cancellationToken);
 
-        public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
-        {
-            if (_currentTransaction != null)
-                return;
+        //public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+        //{
+        //    if (_currentTransaction != null)
+        //        return;
 
-            _currentTransaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-        }
+        //    _currentTransaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        //}
 
-        public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
-        {
-            if (_currentTransaction == null)
-                return;
+        //public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+        //{
+        //    if (_currentTransaction == null)
+        //        return;
 
-            await _currentTransaction.CommitAsync(cancellationToken);
-            await _currentTransaction.DisposeAsync();
-            _currentTransaction = null;
-        }
+        //    await _currentTransaction.CommitAsync(cancellationToken);
+        //    await _currentTransaction.DisposeAsync();
+        //    _currentTransaction = null;
+        //}
 
-        public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
-        {
-            if (_currentTransaction == null)
-                return;
+        //public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+        //{
+        //    if (_currentTransaction == null)
+        //        return;
 
-            await _currentTransaction.RollbackAsync(cancellationToken);
-            await _currentTransaction.DisposeAsync();
-            _currentTransaction = null;
-        }
+        //    await _currentTransaction.RollbackAsync(cancellationToken);
+        //    await _currentTransaction.DisposeAsync();
+        //    _currentTransaction = null;
+        //}
 
-        #endregion
+        //#endregion
     }
 }
