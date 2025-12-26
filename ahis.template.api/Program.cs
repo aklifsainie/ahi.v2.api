@@ -56,7 +56,7 @@ namespace ahis.template.api
                     //.AllowCredentials(); // remove if do not need cookies/credentials
                 });
 
-                // DEV: you can add an open policy for development only (optional)
+                // DEV: Can add an open policy for development only (optional)
                 options.AddPolicy("AllowAllDev", policy =>
                 {
                     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
@@ -164,35 +164,7 @@ namespace ahis.template.api
             });
 
             var authSettings = configuration.GetSection("Authentication");
-            
-            //services.AddIdentity<ApplicationUser, IdentityRole>(options =>
-            //{
-            //    options.Tokens.AuthenticatorTokenProvider = TokenOptions.DefaultAuthenticatorProvider;
-
-
-            //    // User settings
-            //    options.User.RequireUniqueEmail = authSettings.GetValue<bool>("User:RequireUniqueEmail");
-
-
-            //    // Sign-In settings
-            //    options.SignIn.RequireConfirmedAccount = authSettings.GetValue<bool>("SignIn:RequireConfirmedAccount");
-            //    options.SignIn.RequireConfirmedPhoneNumber = authSettings.GetValue<bool>("SignIn:RequireConfirmedPhoneNumber");
-            //    options.SignIn.RequireConfirmedEmail = authSettings.GetValue<bool>("SignIn:RequireConfirmedEmail");
-                
-
-            //    // Password settings
-            //    options.Password.RequireDigit = authSettings.GetValue<bool>("Password:RequireDigit");
-            //    options.Password.RequiredLength = authSettings.GetValue<int>("Password:RequiredLength");
-            //    options.Password.RequireNonAlphanumeric = authSettings.GetValue<bool>("Password:RequireNonAlphanumeric");
-            //    options.Password.RequireUppercase = authSettings.GetValue<bool>("Password:RequireUppercase");
-            //    options.Password.RequireLowercase = authSettings.GetValue<bool>("Password:RequireLowercase");
-
-            //    // Lockout settings
-            //    var lockoutMinutes = authSettings.GetValue<string>("Lockout:DefaultLockoutTimeSpan");
-            //    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.Parse(lockoutMinutes);
-            //    options.Lockout.MaxFailedAccessAttempts = authSettings.GetValue<int>("Lockout:MaxFailedAccessAttempts");
-            //    options.Lockout.AllowedForNewUsers = authSettings.GetValue<bool>("Lockout:AllowedForNewUsers");
-            //}).AddEntityFrameworkStores<IdentityContext>().AddDefaultTokenProviders();
+           
 
             services.AddIdentityCore<ApplicationUser>(options =>
             {

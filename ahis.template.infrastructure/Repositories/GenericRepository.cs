@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 
 namespace ahis.template.infrastructure.Repositories
 {
-    // Implement both application and domain IGenericRepository interfaces to support either namespace usage in the solution.
     public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
     {
         protected readonly ApplicationDbContext _context;

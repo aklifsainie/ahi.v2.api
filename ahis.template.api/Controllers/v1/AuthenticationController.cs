@@ -80,7 +80,43 @@ namespace ahis.template.api.Controllers.v1
         }
 
 
+        //[HttpPost("refresh")]
+        //public async Task<IActionResult> Refresh()
+        //{
+        //    if (!Request.Cookies.TryGetValue("refresh_token", out var refreshToken))
+        //        return Unauthorized("Missing refresh token.");
 
+        //    var userId = User.GetUserIdFromExpiredToken(); // custom helper
+
+        //    var result = await _mediator.Send(
+        //        new RefreshTokenCommand(userId, refreshToken));
+
+        //    if (result.IsFailed)
+        //        return Response(result);
+
+        //    var auth = result.Value;
+
+        //    // Rotate refresh token
+        //    HttpContext.Response.Cookies.Append(
+        //        "refresh_token",
+        //        auth.RefreshToken,
+        //        new CookieOptions
+        //        {
+        //            HttpOnly = true,
+        //            Secure = true,
+        //            SameSite = SameSiteMode.Strict,
+        //            Expires = auth.RefreshTokenExpiresAt,
+        //            Path = "/api/authentication/refresh"
+        //        });
+
+        //    auth.RefreshToken = null;
+
+        //    return Ok(new
+        //    {
+        //        accessToken = auth.AccessToken,
+        //        expiresInSeconds = auth.ExpiresInSeconds
+        //    });
+        //}
 
         //[HttpPost("decode-token")]
         //public async Task<IActionResult> DecodeToken([FromBody] string token)
