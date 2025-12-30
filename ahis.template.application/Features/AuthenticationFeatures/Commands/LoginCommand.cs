@@ -2,8 +2,6 @@
 using ahis.template.identity.Interfaces;
 using FluentResults;
 using Microsoft.Extensions.Logging;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace ahis.template.application.Features.AuthenticationFeatures.Commands
 {

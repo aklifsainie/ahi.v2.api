@@ -1,9 +1,7 @@
 ﻿using ahis.template.application.Features.AuthenticationFeatures.Commands;
-using ahis.template.application.Features.AuthenticationFeatures.Queries;
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
 using FluentResults;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ahis.template.api.Controllers.v1

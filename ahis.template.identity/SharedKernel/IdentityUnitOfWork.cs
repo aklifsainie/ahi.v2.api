@@ -1,11 +1,6 @@
 ﻿using ahis.template.domain.SharedKernel;
 using ahis.template.identity.Contexts;
 using Microsoft.EntityFrameworkCore.Storage;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ahis.template.identity.SharedKernel
 {

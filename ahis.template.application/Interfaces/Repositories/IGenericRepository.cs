@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq.Expressions;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Linq.Expressions;
 using ahis.template.domain.Models.Entities;
 
 namespace ahis.template.application.Interfaces.Repositories

@@ -2,7 +2,6 @@
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ahis.template.api.Controllers.v1

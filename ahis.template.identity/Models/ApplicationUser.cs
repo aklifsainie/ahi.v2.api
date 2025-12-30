@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System;
 
 namespace ahis.template.identity.Models
 {
