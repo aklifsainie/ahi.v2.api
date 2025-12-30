@@ -11,7 +11,7 @@ namespace ahis.template.identity.Interfaces
         Task<Result<AuthResponseDto>> LoginAsync(string userNameOrEmail, string password, bool rememberMe = false);
         Task<Result> LogoutAsync();
         Task<Result<AuthResponseDto>> RefreshTokenAsync(string userId, string refreshToken);
-        Task<Result<AuthResponseDto>> VerifyTwoFactorAsync(string userId, string provider, string code, bool rememberMachine = false);
+        Task<Result<AuthResponseDto>> VerifyTwoFactorAsync(string userId, string code, bool rememberMachine = false);
         Task<Result> RevokeRefreshTokensAsync(string userId);
 
         JwtPayload DecodeToken(string token);

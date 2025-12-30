@@ -57,7 +57,8 @@ namespace ahis.template.identity.Services
                 if (!user.IsActive || user.IsDeleted)
                     return Result.Fail<AuthResponseDto>("User is not active.");
 
-                var signInResult = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
+                var signInResult = await _signInManager.PasswordSignInAsync(user, password, isPersistent: rememberMe, lockoutOnFailure: true);
+                //var signInResult = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
                 if (!signInResult.Succeeded)
                 {
                     if (signInResult.IsLockedOut)
@@ -192,7 +193,7 @@ namespace ahis.template.identity.Services
         }
 
 
-        public async Task<Result<AuthResponseDto>> VerifyTwoFactorAsync(string userId, string provider, string code, bool rememberMachine = false)
+        public async Task<Result<AuthResponseDto>> VerifyTwoFactorAsync(string userId, string code, bool rememberMachine = false)
         {
             await _unitOfWork.BeginTransactionAsync();
 
@@ -202,44 +203,53 @@ namespace ahis.template.identity.Services
                 if (user == null)
                     return Result.Fail<AuthResponseDto>("User not found.");
 
-                // TwoFactorAuthenticatorSignInAsync signature: (string code, bool rememberClient, bool rememberBrowser)
-                var valid = await _signInManager.TwoFactorAuthenticatorSignInAsync(code, rememberMachine, rememberMachine);
-                if (!valid.Succeeded)
-                {
+                if (!user.TwoFactorEnabled)
+                    return Result.Fail<AuthResponseDto>("Two-factor authentication is not enabled.");
+
+                // Stateless 2FA verification (API-safe)
+                var isValid = await _userManager.VerifyTwoFactorTokenAsync(
+                    user,
+                    TokenOptions.DefaultAuthenticatorProvider,
+                    code
+                );
+
+                if (!isValid)
                     return Result.Fail<AuthResponseDto>("Invalid two-factor verification code.");
+
+                // Remember this device (optional)
+                if (rememberMachine)
+                {
+                    await _userManager.SetTwoFactorEnabledAsync(user, true);
                 }
 
-                // successful 2FA, return tokens
+                // Generate tokens
                 var accessToken = await GenerateJwtTokenAsync(user);
                 var (refreshToken, refreshExpiresAt) = GenerateRefreshToken();
-
 
                 await StoreRefreshTokenAsync(user.Id, refreshToken, refreshExpiresAt);
 
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitTransactionAsync();
 
-                var response = new AuthResponseDto
+                return Result.Ok(new AuthResponseDto
                 {
                     AccessToken = accessToken,
-                    ExpiresInSeconds = int.Parse(_configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"),
+                    ExpiresInSeconds = int.Parse(
+                        _configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"),
                     RefreshToken = refreshToken,
                     RefreshTokenExpiresAt = refreshExpiresAt,
                     UserId = user.Id.ToString(),
                     RequiresTwoFactor = false
-                };
-
-                return Result.Ok(response);
+                });
             }
             catch (Exception ex)
             {
-
                 await _unitOfWork.RollbackTransactionAsync();
-                _logger.LogError(ex, "Login failed");
+                _logger.LogError(ex, "Verify 2FA failed");
                 return Result.Fail<AuthResponseDto>("Verify 2FA failed.");
             }
-            
         }
+
 
         public async Task<Result> RevokeRefreshTokensAsync(string userId)
         {

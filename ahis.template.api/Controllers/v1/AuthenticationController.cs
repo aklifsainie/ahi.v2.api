@@ -20,26 +20,40 @@ namespace ahis.template.api.Controllers.v1
         }
 
         /// <summary>
-        /// Authenticate a user and issue access and refresh tokens
+        /// Authenticate a user using username/email and password
         /// </summary>
         /// <remarks>
-        /// This endpoint authenticates a user using a username or email and password.
-        /// 
-        /// If authentication is successful:
-        /// - An **access token** is returned in the response body.
-        /// - A **refresh token** is issued and stored as an **HttpOnly Secure cookie**.
-        /// 
-        /// The refresh token is:
-        /// - Not accessible via JavaScript
-        /// - Automatically sent by the browser on token refresh requests
-        /// - Used to obtain a new access token when the current one expires
+        /// This endpoint validates the user's credentials and initiates the authentication flow.
+        ///
+        /// ## Authentication Flow
+        /// 1. User submits **username/email** and **password**
+        /// 2. If credentials are invalid → authentication fails
+        /// 3. If **Two-Factor Authentication (2FA) is enabled**:
+        ///    - No access or refresh tokens are issued
+        ///    - Response indicates `requiresTwoFactor = true`
+        ///    - Frontend must call **Verify 2FA** endpoint
+        /// 4. If authentication is fully successful:
+        ///    - An **access token** is returned in the response body
+        ///    - A **refresh token** is issued as an **HttpOnly Secure cookie**
+        ///
+        /// ## Refresh Token Behavior
+        /// - Stored as an **HttpOnly** cookie (not accessible via JavaScript)
+        /// - Automatically sent by the browser on refresh requests
+        /// - Scoped to `/api/authentication/refresh`
+        ///
+        /// ## Notes for Frontend Developers
+        /// - If `requiresTwoFactor` is true:
+        ///   - Do NOT treat login as complete
+        ///   - Prompt user for 2FA code
+        ///   - Call `/api/authentication/verify-2fa`
         /// </remarks>
         /// <param name="command">User login credentials</param>
-        /// <response code="200">User authenticated successfully</response>
+        /// <response code="200">Login succeeded or 2FA is required</response>
         /// <response code="400">Invalid login credentials</response>
-        /// <response code="401">Unauthorized access</response>
+        /// <response code="401">Unauthorized</response>
         /// <response code="423">User account is locked</response>
         /// <response code="500">Unexpected internal server error</response>
+
         [HttpPost("login")]
         [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -56,28 +70,108 @@ namespace ahis.template.api.Controllers.v1
                 return Response(result);
 
             // Set refresh token as HttpOnly cookie
-            HttpContext.Response.Cookies.Append(
-                "refresh_token",
-                result.Value.RefreshToken,
-                new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = true, // HTTPS only
-                    SameSite = SameSiteMode.Strict,
-                    Expires = result.Value.RefreshTokenExpiresAt,
-                    Path = "/api/authentication/refresh" // limit exposure
-                }
-            );
+            if (!result.Value.RequiresTwoFactor)
+            {
+                HttpContext.Response.Cookies.Append(
+                    "refresh_token",
+                    result.Value.RefreshToken!,
+                    new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        Expires = result.Value.RefreshTokenExpiresAt,
+                        Path = "/api/authentication/refresh"
+                    }
+                );
+            }
+
 
 
             return Response(Result.Ok(new
             {
                 accessToken = result.Value.AccessToken,
                 expiresInSeconds = result.Value.ExpiresInSeconds,
-                userId = result.Value.UserId
+                userId = result.Value.UserId,
+                requiresTwoFactor = result.Value.RequiresTwoFactor
             }).WithSuccess("Successfully logged in"));
 
+
         }
+
+        /// <summary>
+        /// Verifies a two-factor authentication (2FA) login attempt.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint is called after the user has successfully entered their username and password
+        /// and is required to complete two-factor authentication (2FA).
+        ///
+        /// Flow:
+        /// 1. Frontend submits the 2FA verification code (e.g., from Authenticator app).
+        /// 2. Backend validates the code against the selected 2FA provider.
+        /// 3. If valid:
+        ///    - An access token is returned in the response body.
+        ///    - A refresh token is securely stored as an HttpOnly cookie.
+        /// 4. If invalid or expired, an error response is returned.
+        ///
+        /// Notes for Frontend:
+        /// - The refresh token is NOT returned in the response body.
+        /// - It is stored as an HttpOnly cookie and will be automatically sent by the browser
+        ///   when calling the refresh-token endpoint.
+        /// - The access token should be stored in memory or a secure client-side store
+        ///   and attached to subsequent API requests as a Bearer token.
+        ///
+        /// Expected Errors:
+        /// - 400 Bad Request: Invalid or malformed request payload.
+        /// - 401 Unauthorized: Invalid or expired 2FA code.
+        /// - 423 Locked: Account is locked due to multiple failed attempts.
+        /// </remarks>
+        /// <param name="command">
+        /// 2FA verification payload containing:
+        /// - User identifier
+        /// - 2FA provider (e.g., Authenticator)
+        /// - One-time verification code
+        /// </param>
+        /// <returns>
+        /// Returns an access token and token expiry information upon successful verification.
+        /// </returns>
+        [HttpPost("verify-2fa")]
+        [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status423Locked)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [Produces("application/json")]
+        public async Task<IActionResult> VerifyTwoFactor(
+            [FromBody] VerifyTwoFactorLoginCommand command)
+        {
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+                return Response(result);
+
+            // Set refresh token cookie
+            HttpContext.Response.Cookies.Append(
+                "refresh_token",
+                result.Value.RefreshToken,
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = result.Value.RefreshTokenExpiresAt,
+                    Path = "/api/authentication/refresh"
+                });
+
+            return Response(Result.Ok(new
+            {
+                accessToken = result.Value.AccessToken,
+                expiresInSeconds = result.Value.ExpiresInSeconds,
+                userId = result.Value.UserId
+            }).WithSuccess("Successfully authenticated with two-factor authentication"));
+        }
+
+
 
 
         //[HttpPost("refresh")]

@@ -161,7 +161,7 @@ namespace ahis.template.api
                         return Task.CompletedTask;
                     }
                 };
-            });
+            }).AddIdentityCookies();
 
             var authSettings = configuration.GetSection("Authentication");
            

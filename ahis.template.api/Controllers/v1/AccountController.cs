@@ -1,6 +1,7 @@
 ﻿using ahis.template.application.Features.AccountFeatures.Commands;
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -93,6 +94,7 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
+        [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
         {
             return Response(await _mediator.Send(command));
@@ -113,9 +115,77 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
+        [Authorize]
         public async Task<IActionResult> GenerateAuthenticatorSetup([FromBody] GenerateAuthenticatorSetupCommand command)
         {
             return Response(await _mediator.Send(command));
+        }
+
+        /// <summary>
+        /// Enable two-factor authentication (2FA) using an authenticator app
+        /// </summary>
+        /// <remarks>
+        /// This endpoint completes the two-factor authentication (2FA) setup process.
+        /// <br/><br/>
+        /// <b>Flow:</b>
+        /// <ol>
+        ///   <li>User scans the QR code generated from <c>generate-authenticator-setup</c></li>
+        ///   <li>User enters the 6-digit code from their authenticator app</li>
+        ///   <li>This endpoint verifies the code and enables 2FA for the user</li>
+        /// </ol>
+        /// <br/>
+        /// <b>On success:</b>
+        /// <ul>
+        ///   <li>Two-factor authentication is enabled</li>
+        ///   <li>A list of recovery codes is returned (must be shown once and saved securely by the user)</li>
+        /// </ul>
+        /// <br/>
+        /// <b>Important:</b>
+        /// <ul>
+        ///   <li>Each recovery code can be used only once</li>
+        ///   <li>If recovery codes are lost, the user may be locked out</li>
+        /// </ul>
+        /// </remarks>
+        /// <param name="command">
+        /// Payload containing:
+        /// <br/>• <c>UserId</c> – authenticated user's ID
+        /// <br/>• <c>VerificationCode</c> – 6-digit code from authenticator app
+        /// </param>
+        /// <response code="200">Two-factor authentication enabled successfully</response>
+        /// <response code="400">Invalid verification code or invalid request</response>
+        /// <response code="401">User is not authenticated</response>
+        /// <response code="500">Unexpected internal server error</response>
+        [HttpPost("enable-2fa")]
+        [ProducesResponseType(typeof(ResponseDto<IEnumerable<string>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [Produces("application/json")]
+        [Authorize]
+        public async Task<IActionResult> EnableAuthenticator(
+            [FromBody] EnableTwoFactorCommand command)
+        {
+            return Response(await _mediator.Send(command));
+        }
+
+        [HttpPost("disable-2fa")]
+        [Authorize]
+        public async Task<IActionResult> DisableAuthenticator()
+        {
+            var result = await _mediator.Send(new DisableTwoFactorCommand());
+
+            if (result.IsFailed)
+                return BadRequest(new
+                {
+                    success = false,
+                    errors = result.Errors.Select(e => e.Message)
+                });
+
+            return Ok(new
+            {
+                success = true,
+                message = "Two-factor authentication disabled successfully."
+            });
         }
 
         /// <summary>
@@ -139,10 +209,7 @@ namespace ahis.template.api.Controllers.v1
         }
 
 
-        //[HttpPost("enable-authenticator")] 
-        //public async Task<IActionResult> EnableAuthenticator([FromBody] VerifyTwoFactorCommand command) 
-        //{ 
-        // return Response(await _mediator.Send(command)); 
-        //}
+        
+
     }
 }
