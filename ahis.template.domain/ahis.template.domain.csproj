@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <Folder Include="Models\DTOs\" />
+    <Folder Include="Models\ViewModels\AccountVM\" />
   </ItemGroup>
 
 </Project>

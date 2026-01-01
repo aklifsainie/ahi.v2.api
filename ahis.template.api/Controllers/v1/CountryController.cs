@@ -2,7 +2,7 @@
 using ahis.template.application.Features.CountryFeatures.Query;
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
-using ahis.template.domain.Models.ViewModels;
+using ahis.template.domain.Models.ViewModels.CountryVM;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

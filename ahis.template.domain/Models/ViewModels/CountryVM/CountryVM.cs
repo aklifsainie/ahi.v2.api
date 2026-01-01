@@ -1,5 +1,4 @@
-﻿
-namespace ahis.template.domain.Models.ViewModels
+﻿namespace ahis.template.domain.Models.ViewModels.CountryVM
 {
     public class CountryVM
     {

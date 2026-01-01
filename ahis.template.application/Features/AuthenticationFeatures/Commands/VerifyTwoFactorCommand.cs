@@ -1,4 +1,5 @@
 ﻿using ahis.template.application.Shared.Mediator;
+using ahis.template.domain.Models.ViewModels.AuthenticationVM;
 using ahis.template.identity.Interfaces;
 using FluentResults;
 using Microsoft.Extensions.Logging;
@@ -8,7 +9,7 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
     /// <summary>
     /// Verify two-factor authentication code and complete login
     /// </summary>
-    public class VerifyTwoFactorLoginCommand : IRequest<Result<AuthResponseDto>>
+    public class VerifyTwoFactorLoginCommand : IRequest<Result<AuthenticationResponseVM>>
     {
         public string UserId { get; set; }
         /// <summary>
@@ -23,7 +24,7 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
     }
 
 
-    public class VerifyTwoFactorLoginCommandHandler: IRequestHandler<VerifyTwoFactorLoginCommand, Result<AuthResponseDto>>
+    public class VerifyTwoFactorLoginCommandHandler: IRequestHandler<VerifyTwoFactorLoginCommand, Result<AuthenticationResponseVM>>
     {
         private readonly IAuthenticationService _authenticationService;
         private readonly ILogger<VerifyTwoFactorLoginCommandHandler> _logger;
@@ -34,14 +35,14 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
             _logger = logger;
         }
 
-        public async Task<Result<AuthResponseDto>> Handle(VerifyTwoFactorLoginCommand request, CancellationToken cancellationToken)
+        public async Task<Result<AuthenticationResponseVM>> Handle(VerifyTwoFactorLoginCommand request, CancellationToken cancellationToken)
         {
 
             if (string.IsNullOrWhiteSpace(request.UserId))
-                return Result.Fail<AuthResponseDto>("UserId is required.");
+                return Result.Fail<AuthenticationResponseVM>("UserId is required.");
 
             if (string.IsNullOrWhiteSpace(request.Code))
-                return Result.Fail<AuthResponseDto>("Verification code is required.");
+                return Result.Fail<AuthenticationResponseVM>("Verification code is required.");
 
             try
             {
@@ -58,7 +59,7 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
                     "2FA verification failed for user {UserId}",
                     request.UserId);
 
-                return Result.Fail<AuthResponseDto>(
+                return Result.Fail<AuthenticationResponseVM>(
                     "Failed to verify two-factor authentication.");
             }
         }

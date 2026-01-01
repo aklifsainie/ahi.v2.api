@@ -1,6 +1,9 @@
-﻿using ahis.template.identity.Contexts;
+﻿using ahis.template.domain.Models.ViewModels.AuthenticationVM;
+using ahis.template.identity.Contexts;
 using ahis.template.identity.Interfaces;
 using ahis.template.identity.Models;
+using ahis.template.identity.SharedKernel;
+using FluentResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -10,8 +13,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using FluentResults;
-using ahis.template.identity.SharedKernel;
 
 namespace ahis.template.identity.Services
 {
@@ -40,29 +41,66 @@ namespace ahis.template.identity.Services
             _logger = logger;
         }
 
-        public async Task<Result<AuthResponseDto>> LoginAsync(string userNameOrEmail, string password, bool rememberMe = false)
+        public async Task<Result<AuthenticationResponseVM>> CheckAccountStateByEmailAsync(string userNameOrEmail)
+        {
+            if (string.IsNullOrWhiteSpace(userNameOrEmail))
+                return Result.Fail<AuthenticationResponseVM>("Invalid email.");
+
+            var user = await _userManager.FindByNameAsync(userNameOrEmail) ?? await _userManager.FindByEmailAsync(userNameOrEmail);
+            if (user == null)
+            {
+                // Prevent user enumeration attacks
+                return Result.Ok(new AuthenticationResponseVM
+                {
+                    IsEmailConfirmed = false,
+                    IsPasswordCreated = false,
+                    RequiresTwoFactor = false
+                });
+            }
+
+            var isEmailConfirmed = await _userManager.IsEmailConfirmedAsync(user);
+            var hasPassword = await _userManager.HasPasswordAsync(user);
+            var isTwoFactorEnabled = await _userManager.GetTwoFactorEnabledAsync(user);
+
+            return Result.Ok(new AuthenticationResponseVM
+            {
+                UserId = user.Id.ToString(),
+                IsEmailConfirmed = isEmailConfirmed,
+                IsPasswordCreated = hasPassword,
+                RequiresTwoFactor = isTwoFactorEnabled
+            });
+        }
+
+
+        public async Task<Result<AuthenticationResponseVM>> LoginAsync(string userNameOrEmail, string password, bool rememberMe = false)
         {
             
             try
             {
+                // Check for user existance
                 var user = await _userManager.FindByNameAsync(userNameOrEmail) ?? await _userManager.FindByEmailAsync(userNameOrEmail);
                 if (user == null)
-                    return Result.Fail<AuthResponseDto>("Invalid credentials.");
+                    return Result.Fail<AuthenticationResponseVM>("Invalid credentials.");
 
                 if (!user.IsActive || user.IsDeleted)
-                    return Result.Fail<AuthResponseDto>("User is not active.");
+                    return Result.Fail<AuthenticationResponseVM>("User is not active.");
 
+
+                // Login 
+                /// CheckPasswordSignInAsync - Only check for the correct credential
+                /// PasswordSignInAsync - Check overall like username, password, IsEmailConfirm, IsActive etc.
                 var signInResult = await _signInManager.PasswordSignInAsync(user, password, isPersistent: rememberMe, lockoutOnFailure: true);
                 //var signInResult = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
+
                 if (!signInResult.Succeeded)
                 {
                     if (signInResult.IsLockedOut)
-                        return Result.Fail<AuthResponseDto>("User is locked out.");
+                        return Result.Fail<AuthenticationResponseVM>("User is locked out.");
 
                     if (signInResult.RequiresTwoFactor)
-                        return Result.Ok(new AuthResponseDto { RequiresTwoFactor = true, UserId = user.Id.ToString() });
+                        return Result.Ok(new AuthenticationResponseVM { RequiresTwoFactor = true, UserId = user.Id.ToString() });
 
-                    return Result.Fail<AuthResponseDto>("Invalid credentials.");
+                    return Result.Fail<AuthenticationResponseVM>("Invalid credentials.");
                 }
 
                 // create tokens
@@ -78,7 +116,7 @@ namespace ahis.template.identity.Services
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitTransactionAsync();
 
-                var response = new AuthResponseDto
+                var response = new AuthenticationResponseVM
                 {
                     AccessToken = accessToken,
                     ExpiresInSeconds = int.Parse(_configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"),
@@ -94,26 +132,43 @@ namespace ahis.template.identity.Services
             {
                 await _unitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, "Login failed");
-                return Result.Fail<AuthResponseDto>("Login failed.");
+                return Result.Fail<AuthenticationResponseVM>("Login failed.");
             }
             
         }
 
-        public async Task<Result> LogoutAsync()
+        //public async Task<Result> LogoutAsync()
+        //{
+        //    try
+        //    {
+        //        await _signInManager.SignOutAsync();
+        //        return Result.Ok();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Logout failed");
+        //        return Result.Fail("Logout failed.");
+        //    }
+        //}
+
+        public async Task LogoutAsync(string refreshToken)
         {
-            try
-            {
-                await _signInManager.SignOutAsync();
-                return Result.Ok();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Logout failed");
-                return Result.Fail("Logout failed.");
-            }
+            var token = await _context.RefreshTokens
+                .FirstOrDefaultAsync(x =>
+                    x.Token == refreshToken &&
+                    !x.IsRevoked &&
+                    x.ExpiresAt > DateTime.UtcNow);
+
+            if (token == null)
+                return;
+
+            token.IsRevoked = true;
+            token.RevokedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
         }
 
-        public async Task<Result<AuthResponseDto>> RefreshTokenAsync(string userId, string refreshToken)
+        public async Task<Result<AuthenticationResponseVM>> RefreshTokenAsync(string userId, string refreshToken)
         {
             try
             {
@@ -124,7 +179,7 @@ namespace ahis.template.identity.Services
                         x.Token == refreshToken);
 
                 if (storedToken == null)
-                    return Result.Fail<AuthResponseDto>("Invalid refresh token.");
+                    return Result.Fail<AuthenticationResponseVM>("Invalid refresh token.");
 
                 // Detect reuse (token replay attack)
                 if (storedToken.IsRevoked)
@@ -133,17 +188,17 @@ namespace ahis.template.identity.Services
                         "Refresh token reuse detected for user {UserId}", userId);
 
                     await RevokeRefreshTokensAsync(userId);
-                    return Result.Fail<AuthResponseDto>(
+                    return Result.Fail<AuthenticationResponseVM>(
                         "Refresh token reuse detected. All sessions revoked.");
                 }
 
                 // Expiry validation
                 if (storedToken.ExpiresAt < DateTime.UtcNow)
-                    return Result.Fail<AuthResponseDto>("Expired refresh token.");
+                    return Result.Fail<AuthenticationResponseVM>("Expired refresh token.");
 
                 var user = await _userManager.FindByIdAsync(userId);
                 if (user == null)
-                    return Result.Fail<AuthResponseDto>("User not found.");
+                    return Result.Fail<AuthenticationResponseVM>("User not found.");
 
                 // Begin atomic operation
                 await _unitOfWork.BeginTransactionAsync();
@@ -164,7 +219,7 @@ namespace ahis.template.identity.Services
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitTransactionAsync();
 
-                return Result.Ok(new AuthResponseDto
+                return Result.Ok(new AuthenticationResponseVM
                 {
                     AccessToken = accessToken,
                     ExpiresInSeconds =
@@ -183,12 +238,12 @@ namespace ahis.template.identity.Services
                     "RefreshTokenAsync failed for user {UserId}",
                     userId);
 
-                return Result.Fail<AuthResponseDto>("Failed to refresh token.");
+                return Result.Fail<AuthenticationResponseVM>("Failed to refresh token.");
             }
         }
 
 
-        public async Task<Result<AuthResponseDto>> VerifyTwoFactorAsync(string userId, string code, bool rememberMachine = false)
+        public async Task<Result<AuthenticationResponseVM>> VerifyTwoFactorAsync(string userId, string code, bool rememberMachine = false)
         {
             await _unitOfWork.BeginTransactionAsync();
 
@@ -196,10 +251,10 @@ namespace ahis.template.identity.Services
             {
                 var user = await _userManager.FindByIdAsync(userId);
                 if (user == null)
-                    return Result.Fail<AuthResponseDto>("User not found.");
+                    return Result.Fail<AuthenticationResponseVM>("User not found.");
 
                 if (!user.TwoFactorEnabled)
-                    return Result.Fail<AuthResponseDto>("Two-factor authentication is not enabled.");
+                    return Result.Fail<AuthenticationResponseVM>("Two-factor authentication is not enabled.");
 
                 // Stateless 2FA verification (API-safe)
                 var isValid = await _userManager.VerifyTwoFactorTokenAsync(
@@ -209,7 +264,7 @@ namespace ahis.template.identity.Services
                 );
 
                 if (!isValid)
-                    return Result.Fail<AuthResponseDto>("Invalid two-factor verification code.");
+                    return Result.Fail<AuthenticationResponseVM>("Invalid two-factor verification code.");
 
                 // Remember this device (optional)
                 if (rememberMachine)
@@ -226,7 +281,7 @@ namespace ahis.template.identity.Services
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitTransactionAsync();
 
-                return Result.Ok(new AuthResponseDto
+                return Result.Ok(new AuthenticationResponseVM
                 {
                     AccessToken = accessToken,
                     ExpiresInSeconds = int.Parse(
@@ -241,7 +296,7 @@ namespace ahis.template.identity.Services
             {
                 await _unitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, "Verify 2FA failed");
-                return Result.Fail<AuthResponseDto>("Verify 2FA failed.");
+                return Result.Fail<AuthenticationResponseVM>("Verify 2FA failed.");
             }
         }
 

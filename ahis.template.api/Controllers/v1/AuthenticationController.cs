@@ -1,6 +1,9 @@
 ﻿using ahis.template.application.Features.AuthenticationFeatures.Commands;
+using ahis.template.application.Features.AuthenticationFeatures.Queries;
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
+using ahis.template.domain.Models.ViewModels.AuthenticationVM;
+using ahis.template.identity.Interfaces;
 using FluentResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,6 +18,70 @@ namespace ahis.template.api.Controllers.v1
         public AuthenticationController(IMediator mediator)
         {
             _mediator = mediator;
+        }
+
+
+        /// <summary>
+        /// Checks the current account state using username or email.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint is used for <b>pre-login account validation</b>.
+        /// <para>
+        /// It does <b>NOT</b> authenticate the user, generate tokens, or validate passwords.
+        /// </para>
+        /// <para>
+        /// The purpose of this endpoint is to allow the frontend to determine
+        /// the correct user flow based on account status:
+        /// </para>
+        /// <list type="bullet">
+        ///   <item>
+        ///     <description>Whether the email has been confirmed</description>
+        ///   </item>
+        ///   <item>
+        ///     <description>Whether the user has already created a password</description>
+        ///   </item>
+        ///   <item>
+        ///     <description>Whether two-factor authentication (2FA) is enabled</description>
+        ///   </item>
+        /// </list>
+        /// <para>
+        /// This endpoint always returns a successful response even if the email
+        /// does not exist, to prevent user enumeration attacks.
+        /// </para>
+        /// <para>
+        /// Frontend usage example:
+        /// </para>
+        /// <list type="number">
+        ///   <item>
+        ///     <description>If email is not confirmed → prompt email verification</description>
+        ///   </item>
+        ///   <item>
+        ///     <description>If password is not created → redirect to password setup</description>
+        ///   </item>
+        ///   <item>
+        ///     <description>If 2FA is enabled → redirect to 2FA verification</description>
+        ///   </item>
+        ///   <item>
+        ///     <description>Otherwise → show login form</description>
+        ///   </item>
+        /// </list>
+        /// </remarks>
+        /// <param name="query">
+        /// Request payload containing the user's email.
+        /// </param>
+        /// <response code="200">
+        /// Returns account state information required to determine the next authentication step.
+        /// </response>
+        /// <response code="400">
+        /// Returned when the request payload is invalid.
+        /// </response>
+        [HttpPost("check-account")]
+        [ProducesResponseType(typeof(ResponseDto<CheckAccountStateVM>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> CheckAccount([FromBody] CheckAccountStateByUsernameOrEmailQuery query)
+        {
+            var result = await _mediator.Send(query);
+            return Response(result);
         }
 
         /// <summary>
@@ -53,7 +120,7 @@ namespace ahis.template.api.Controllers.v1
         /// <response code="500">Unexpected internal server error</response>
 
         [HttpPost("login")]
-        [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseDto<AuthenticationResponseVM>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status423Locked)]
@@ -134,7 +201,7 @@ namespace ahis.template.api.Controllers.v1
         /// Returns an access token and token expiry information upon successful verification.
         /// </returns>
         [HttpPost("verify-2fa")]
-        [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseDto<AuthenticationResponseVM>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status423Locked)]
@@ -169,6 +236,29 @@ namespace ahis.template.api.Controllers.v1
             }).WithSuccess("Successfully authenticated with two-factor authentication"));
         }
 
+        [HttpPost("logout")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> Logout()
+        {
+            Request.Cookies.TryGetValue("refresh_token", out var refreshToken);
+
+            await _mediator.Send(new LogoutCommand(refreshToken));
+
+            // Clear cookie
+            HttpContext.Response.Cookies.Append(
+                "refresh_token",
+                string.Empty,
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddDays(-1),
+                    Path = "/api/authentication/refresh"
+                });
+
+            return Ok(new { message = "Successfully logged out." });
+        }
 
 
 

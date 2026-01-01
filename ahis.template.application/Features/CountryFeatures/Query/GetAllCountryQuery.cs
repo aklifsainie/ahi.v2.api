@@ -2,7 +2,6 @@
 using ahis.template.application.Shared.Mediator;
 using ahis.template.application.Interfaces.Repositories;
 using ahis.template.domain.Models.Entities;
-using ahis.template.domain.Models.ViewModels;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -10,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using FluentResults;
+using ahis.template.domain.Models.ViewModels.CountryVM;
 
 namespace ahis.template.application.Features.CountryFeatures.Query
 {

@@ -1,13 +1,14 @@
 ﻿using ahis.template.application.Shared.Mediator;
 using ahis.template.identity.Interfaces;
+using ahis.template.domain.Models.ViewModels.AuthenticationVM;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 
 namespace ahis.template.application.Features.AuthenticationFeatures.Commands
 {
-    public record LoginCommand(string UserNameOrEmail, string Password, bool RememberMe) : IRequest<Result<AuthResponseDto>>;
+    public record LoginCommand(string UserNameOrEmail, string Password, bool RememberMe) : IRequest<Result<AuthenticationResponseVM>>;
 
-    public class LoginCommandHandler: IRequestHandler<LoginCommand, Result<AuthResponseDto>>
+    public class LoginCommandHandler: IRequestHandler<LoginCommand, Result<AuthenticationResponseVM>>
     {
         private readonly IAuthenticationService _authenticationService;
         private readonly ILogger<LoginCommandHandler> _logger;
@@ -18,7 +19,7 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
             _logger = logger;
         }
 
-        public async Task<Result<AuthResponseDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
+        public async Task<Result<AuthenticationResponseVM>> Handle(LoginCommand request, CancellationToken cancellationToken)
         {
             var result = await _authenticationService.LoginAsync(
                 request.UserNameOrEmail,
@@ -32,7 +33,7 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
                     request.UserNameOrEmail,
                     string.Join(", ", result.Errors.Select(e => e.Message)));
 
-                return Result.Fail<AuthResponseDto>(result.Errors);
+                return Result.Fail<AuthenticationResponseVM>(result.Errors);
             }
 
             return Result.Ok(result.Value);
