@@ -1,15 +1,11 @@
 using ahis.template.api.Filters;
-using ahis.template.application.Features.AuthenticationFeatures.Commands;
 using ahis.template.application.Services;
 using ahis.template.identity;
 using ahis.template.identity.Contexts;
-using ahis.template.identity.Interfaces;
 using ahis.template.identity.Models.Entities;
-using ahis.template.identity.Services;
 using ahis.template.infrastructure;
 using ahis.template.infrastructure.Contexts;
 using ahis.template.infrastructure.SharedKernel;
-using FluentResults;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -154,10 +150,10 @@ namespace ahis.template.api
                 // Normal API endpoint
                 options.AddSlidingWindowLimiter("ApiPolicy", limiter =>
                 {
-                    limiter.PermitLimit = 100; // 100 requests
+                    limiter.PermitLimit = 10; // 100 requests
                     limiter.Window = TimeSpan.FromMinutes(1);
                     limiter.SegmentsPerWindow = 4; // Sliding window segments
-                    limiter.QueueLimit = 5; // small queue for extra requests
+                    limiter.QueueLimit = 2; // small queue for extra requests
                     limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
                 });
 
@@ -216,18 +212,25 @@ namespace ahis.template.api
             services.AddIdentityCore<ApplicationUser>(options =>
             {
                 options.Tokens.AuthenticatorTokenProvider = TokenOptions.DefaultAuthenticatorProvider;
+
                 // User settings
                 options.User.RequireUniqueEmail = authSettings.GetValue<bool>("User:RequireUniqueEmail");
+
+
                 // Sign-In settings
                 options.SignIn.RequireConfirmedAccount = authSettings.GetValue<bool>("SignIn:RequireConfirmedAccount");
                 options.SignIn.RequireConfirmedPhoneNumber = authSettings.GetValue<bool>("SignIn:RequireConfirmedPhoneNumber");
                 options.SignIn.RequireConfirmedEmail = authSettings.GetValue<bool>("SignIn:RequireConfirmedEmail");
+
+
                 // Password settings
                 options.Password.RequireDigit = authSettings.GetValue<bool>("Password:RequireDigit");
                 options.Password.RequiredLength = authSettings.GetValue<int>("Password:RequiredLength");
                 options.Password.RequireNonAlphanumeric = authSettings.GetValue<bool>("Password:RequireNonAlphanumeric");
                 options.Password.RequireUppercase = authSettings.GetValue<bool>("Password:RequireUppercase");
                 options.Password.RequireLowercase = authSettings.GetValue<bool>("Password:RequireLowercase");
+
+
                 // Lockout settings
                 var lockoutMinutes = authSettings.GetValue<string>("Lockout:DefaultLockoutTimeSpan");
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.Parse(lockoutMinutes);

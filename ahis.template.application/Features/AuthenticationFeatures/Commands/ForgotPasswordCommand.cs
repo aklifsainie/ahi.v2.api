@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace ahis.template.application.Features.AuthenticationFeatures.Commands
 {
-    public class ForgotPasswordCommand: IRequest<Result<object>>
+    public class ForgotPasswordCommand: IRequest<Result>
     {
         [Required, EmailAddress]
         public string Email { get; set; }
@@ -19,7 +19,7 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
         public string CallbackBaseUrl { get; set; }
     }
 
-    public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordCommand, Result<object>>
+    public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordCommand, Result>
     {
         private readonly IAuthenticationService _authenticationService;
 
@@ -29,15 +29,15 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
             _authenticationService = authenticationService;
         }
 
-        public async Task<Result<object>> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
+        public async Task<Result> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
         {
             var result = await _authenticationService.ForgotPasswordAsync(request.Email, request.CallbackBaseUrl);
 
             if (!result.IsSuccess)
-                return Result.Fail<object>(result.Errors.FirstOrDefault()?.Message ?? "Registration failed.");
+                return Result.Fail(result.Errors.FirstOrDefault()?.Message ?? "Registration failed.");
 
 
-            return Result.Ok<object>(result.Value).WithSuccess("Password reset token sent to email");
+            return Result.Ok();
         }
     }
 }

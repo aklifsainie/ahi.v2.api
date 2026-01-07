@@ -365,16 +365,22 @@ namespace ahis.template.identity.Services
             }
         }
 
-        public async Task<Result<string>> ForgotPasswordAsync(string email, string callbackBaseUrl)
+        public async Task<Result> ForgotPasswordAsync(string email, string callbackBaseUrl)
         {
             if (string.IsNullOrWhiteSpace(email))
+            {
                 return Result.Fail("Invalid email.");
+            }
+                
 
             var user = await _userManager.FindByEmailAsync(email);
 
             // Prevent user enumeration
             if (user == null || !await _userManager.IsEmailConfirmedAsync(user))
-                return Result.Ok();
+            {
+                return Result.Fail("Invalid email.");
+            }
+                
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 
@@ -390,8 +396,45 @@ namespace ahis.template.identity.Services
                 $"Click the link to reset your password: {resetLink}"
             );
 
-            return Result.Ok(user.Id.ToString());
+            return Result.Ok();
         }
+
+        public async Task<Result> ResetPasswordAsync(string userId, string token, string newPassword)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(newPassword))
+            {
+                return Result.Fail("Invalid reset request.");
+            }
+
+            var user = await _userManager.FindByIdAsync(userId);
+
+            // Prevent user enumeration
+            if (user == null || !await _userManager.IsEmailConfirmedAsync(user))
+            {
+                return Result.Fail("Invalid reset request.");
+            }
+
+            var decodedToken = WebUtility.UrlDecode(token);
+
+            var identityResult = await _userManager.ResetPasswordAsync(user, decodedToken, newPassword);
+
+            if (!identityResult.Succeeded)
+            {
+                var errors = identityResult.Errors
+                    .Select(e =>
+                        new Error(e.Description)
+                        .WithMetadata("Field", "password"))
+                    .ToList();
+
+                return Result.Fail(errors);
+            }
+
+            // Optional but recommended: invalidate sessions
+            await _userManager.UpdateSecurityStampAsync(user);
+
+            return Result.Ok();
+        }
+
 
 
         #region Helpers

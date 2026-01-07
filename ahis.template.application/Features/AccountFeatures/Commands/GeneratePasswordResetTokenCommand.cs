@@ -12,18 +12,6 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
         public string Email { get; set; } = null!;
     }
 
-    public class ResetPasswordCommand : IRequest<Result<object>>
-    {
-        [Required]
-        public string UserId { get; set; } = null!;
-
-        [Required]
-        public string Token { get; set; } = null!;
-
-        [Required]
-        public string NewPassword { get; set; } = null!;
-    }
-
 
     public class GeneratePasswordResetTokenCommandHandler : IRequestHandler<GeneratePasswordResetTokenCommand, Result<object>>
     {

@@ -15,7 +15,9 @@ namespace ahis.template.identity.Interfaces
         Task<Result<AuthenticationResponseVM>> RefreshTokenAsync(string userId, string refreshToken);
         Task<Result<AuthenticationResponseVM>> VerifyTwoFactorAsync(string userId, TwoFactorProviderEnum provider, string code, bool rememberMachine = false);
         Task<Result> RevokeRefreshTokensAsync(string userId);
-        Task<Result<string>> ForgotPasswordAsync(string email, string callbackBaseUrl);
+        Task<Result> ForgotPasswordAsync(string email, string callbackBaseUrl);
+
+        Task<Result> ResetPasswordAsync(string userId, string token, string newPassword);
 
         JwtPayload DecodeToken(string token);
         IEnumerable<Claim> GetClaims(string token);

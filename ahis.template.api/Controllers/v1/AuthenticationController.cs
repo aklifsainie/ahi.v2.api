@@ -1,4 +1,5 @@
-﻿using ahis.template.application.Features.AuthenticationFeatures.Commands;
+﻿using ahis.template.application.Features.AccountFeatures.Commands;
+using ahis.template.application.Features.AuthenticationFeatures.Commands;
 using ahis.template.application.Features.AuthenticationFeatures.Queries;
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
@@ -6,7 +7,9 @@ using ahis.template.domain.Models.ViewModels.AuthenticationVM;
 using ahis.template.identity.Interfaces;
 using FluentResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.RateLimiting;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace ahis.template.api.Controllers.v1
 {
@@ -84,6 +87,27 @@ namespace ahis.template.api.Controllers.v1
         public async Task<IActionResult> CheckAccount([FromBody] CheckAccountStateByUsernameOrEmailQuery query)
         {
             var result = await _mediator.Send(query);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
             return Response(result);
         }
 
@@ -137,7 +161,24 @@ namespace ahis.template.api.Controllers.v1
             var result = await _mediator.Send(command);
 
             if (result.IsFailed)
-                return Response(result);
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
 
             // Set refresh token as HttpOnly cookie
             if (!result.Value.RequiresTwoFactor)
@@ -217,7 +258,24 @@ namespace ahis.template.api.Controllers.v1
             var result = await _mediator.Send(command);
 
             if (result.IsFailed)
-                return Response(result);
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
 
             HttpContext.Response.Cookies.Append(
                 "refresh_token",
@@ -235,7 +293,8 @@ namespace ahis.template.api.Controllers.v1
             {
                 accessToken = result.Value.AccessToken,
                 expiresInSeconds = result.Value.ExpiresInSeconds,
-                userId = result.Value.UserId
+                userId = result.Value.UserId,
+                requiresTwoFactor = result.Value.RequiresTwoFactor
             }).WithSuccess("Successfully authenticated with two-factor authentication"));
         }
 
@@ -272,13 +331,93 @@ namespace ahis.template.api.Controllers.v1
         /// If the account is valid, a password reset email will be sent.
         /// </remarks>
         [HttpPost("forgot-password")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> ForgotPassword(
-            [FromBody] ForgotPasswordCommand command)
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command)
         {
             var result = await _mediator.Send(command);
-            return Response(result);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return NoContent();
         }
+
+
+        /// <summary>
+        /// Resets the user password using a valid reset token.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint is called after the user clicks the reset-password link
+        /// received via email.
+        ///
+        /// Flow:
+        /// 1. User requests forgot password
+        /// 2. System emails a reset link containing userId and token
+        /// 3. Frontend collects new password and submits it to this endpoint
+        ///
+        /// Security notes:
+        /// - Token is time-limited and single-use
+        /// - No user data is exposed in the response
+        ///
+        /// Expected frontend behavior:
+        /// - Validate password strength before submitting
+        /// - Display generic error messages only
+        /// </remarks>
+        /// <param name="command">Reset password payload</param>
+        /// <response code="204">Password reset successfully</response>
+        /// <response code="400">Invalid token or password format</response>
+        /// <response code="429">Too many requests</response>
+        /// <response code="500">Unexpected server error</response>
+        [HttpPost("reset-password")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
+        {
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return NoContent();
+        }
+
 
 
 
