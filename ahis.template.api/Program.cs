@@ -1,4 +1,5 @@
 using ahis.template.api.Filters;
+using ahis.template.application.Features.AuthenticationFeatures.Commands;
 using ahis.template.application.Services;
 using ahis.template.identity;
 using ahis.template.identity.Contexts;
@@ -12,11 +13,13 @@ using FluentResults;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
 using System.Text;
+using System.Threading.RateLimiting;
 
 namespace ahis.template.api
 {
@@ -28,25 +31,54 @@ namespace ahis.template.api
 
             var jwt = builder.Configuration.GetSection("Jwt");
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-            var authSettings = builder.Configuration.GetSection("Authentication");
 
-            // Add services to the container.
+            // Dependencies Injection
             builder.Services.AddScoped<IEmailSender, EmailSender>();
             builder.Services.AddScoped<UnitOfWork>();
 
 
             // Add assemblies service extentions
             builder.Services.AddInfrastructure();
-
-
             builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
             builder.Services.AddIdentityServices(connectionString);
-            ConfigureAuthentication(builder.Services, builder.Configuration, connectionString);
-
             builder.Services.AddControllers();
+            builder.Services.AddEndpointsApiExplorer();
+            ConfigureSwagger(builder.Services, builder.Configuration);
+            ConfigureCors(builder.Services, builder.Configuration);
+            ConfigureAuthentication(builder.Services, builder.Configuration, connectionString);
+            ConfigureRateLimiting(builder.Services, builder.Configuration);
 
-            // CORS: configure a named policy
-            builder.Services.AddCors(options =>
+            builder.Services.AddAuthorization();
+
+            var app = builder.Build();
+
+            // Configure the HTTP request pipeline.
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
+
+            app.UseHttpsRedirection();
+
+            // IMPORTANT: apply CORS before authorization and endpoint mapping
+            app.UseCors("DefaultCorsPolicy");
+
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            app.UseRateLimiter();
+
+            app.MapControllers();
+
+
+            app.Run();
+
+        }
+
+        private static void ConfigureCors(IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddCors(options =>
             {
                 options.AddPolicy("DefaultCorsPolicy", policy =>
                 {
@@ -63,14 +95,15 @@ namespace ahis.template.api
                     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
                 });
             });
+        }
 
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen(options =>
+        private static void ConfigureSwagger(IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddSwaggerGen(options =>
             {
                 var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
                 options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
-                
+
                 // to show enum names + values
                 options.SupportNonNullableReferenceTypes();
                 options.SchemaFilter<EnumSchemaFilter>();
@@ -104,32 +137,40 @@ namespace ahis.template.api
                     }
                 });
             });
+        }
 
-            
-
-            builder.Services.AddAuthorization();
-
-            var app = builder.Build();
-
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+        private static void ConfigureRateLimiting(IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddRateLimiter(options =>
             {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
+                // Strict: login endpoint
+                options.AddFixedWindowLimiter("LoginPolicy", limiter =>
+                {
+                    limiter.PermitLimit = 5; // 5 requests
+                    limiter.Window = TimeSpan.FromMinutes(1);
+                    limiter.QueueLimit = 0; // no queue for login
+                });
 
-            app.UseHttpsRedirection();
+                // Normal API endpoint
+                options.AddSlidingWindowLimiter("ApiPolicy", limiter =>
+                {
+                    limiter.PermitLimit = 100; // 100 requests
+                    limiter.Window = TimeSpan.FromMinutes(1);
+                    limiter.SegmentsPerWindow = 4; // Sliding window segments
+                    limiter.QueueLimit = 5; // small queue for extra requests
+                    limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                });
 
-            // IMPORTANT: apply CORS before authorization and endpoint mapping
-            app.UseCors("DefaultCorsPolicy");
-
-            app.UseAuthentication();
-            app.UseAuthorization();
-
-            app.MapControllers();
-
-            app.Run();
-
+                options.OnRejected = async (context, token) =>
+                {
+                    context.HttpContext.Response.StatusCode = 429;
+                    context.HttpContext.Response.ContentType = "application/json";
+                    await context.HttpContext.Response.WriteAsJsonAsync(new
+                    {
+                        Message = "Too many requests. Please try again later."
+                    }, cancellationToken: token);
+                };
+            });
         }
 
         private static void ConfigureAuthentication(IServiceCollection services, IConfiguration configuration, string connectionString)

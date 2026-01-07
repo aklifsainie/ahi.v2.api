@@ -5,12 +5,14 @@ using ahis.template.application.Shared.Mediator;
 using ahis.template.domain.Models.ViewModels.CountryVM;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ahis.template.api.Controllers.v1
 {
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
+    [EnableRateLimiting("ApiPolicy")]
     public class CountryController : BaseApiController
     {
         private readonly IMediator _mediator;
@@ -34,6 +36,7 @@ namespace ahis.template.api.Controllers.v1
         [HttpGet("get-all")]
         [ProducesResponseType(typeof(ResponseDto<List<CountryVM>>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         [Produces("application/json")]
         public async Task<IActionResult> GetAll()
         {

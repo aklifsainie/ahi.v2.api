@@ -6,6 +6,7 @@ using ahis.template.domain.Models.ViewModels.AuthenticationVM;
 using ahis.template.identity.Interfaces;
 using FluentResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ahis.template.api.Controllers.v1
 {
@@ -78,6 +79,8 @@ namespace ahis.template.api.Controllers.v1
         [HttpPost("check-account")]
         [ProducesResponseType(typeof(ResponseDto<CheckAccountStateVM>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        [EnableRateLimiting("LoginPolicy")]
         public async Task<IActionResult> CheckAccount([FromBody] CheckAccountStateByUsernameOrEmailQuery query)
         {
             var result = await _mediator.Send(query);
@@ -125,7 +128,9 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status423Locked)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         [Produces("application/json")]
+        [EnableRateLimiting("LoginPolicy")]
         public async Task<IActionResult> Login(LoginCommand command)
         {
 
