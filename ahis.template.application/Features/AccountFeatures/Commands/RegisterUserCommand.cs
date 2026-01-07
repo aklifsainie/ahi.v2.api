@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ahis.template.application.Features.AccountFeatures.Commands
 {
-    public class RegisterUserCommand : IRequest<Result<object>>
+    public class RegisterUserCommand : IRequest<Result>
     {
         [Required, EmailAddress]
         public string Email { get; set; } = null!;
@@ -20,7 +20,7 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
     }
 
 
-    public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, Result<object>>
+    public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, Result>
     {
         private readonly IAccountService _accountService;
         private readonly ILogger<RegisterUserCommandHandler> _logger;
@@ -31,14 +31,18 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
             _logger = logger;
         }
 
-        public async Task<Result<object>> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
+        public async Task<Result> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
         {
             _logger.LogInformation("Registering user {Email}", request.Email);
-            var res = await _accountService.RegisterAsync(request.Email, request.UserName, request.CallbackBaseUrl);
-            if (!res.IsSuccess)
-                return Result.Fail<object>(res.Errors.FirstOrDefault()?.Message ?? "Registration failed.");
+            var result = await _accountService.RegisterAsync(request.Email, request.UserName, request.CallbackBaseUrl);
+            if (!result.IsSuccess)
+            {
+                _logger.LogWarning($"Failed to register user {request.Email}: {result.Errors.FirstOrDefault()?.Message}");
 
-            return Result.Ok<object>(res.Value).WithSuccess($"Username {request.UserName} has been register");
+                return Result.Fail(result.Errors.FirstOrDefault()?.Message ?? "Registration failed.");
+            }
+
+            return Result.Ok();
         }
     }
 }

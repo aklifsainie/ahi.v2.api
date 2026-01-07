@@ -207,15 +207,13 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status423Locked)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
-        public async Task<IActionResult> VerifyTwoFactor(
-            [FromBody] VerifyTwoFactorLoginCommand command)
+        public async Task<IActionResult> VerifyTwoFactor([FromBody] VerifyTwoFactorLoginCommand command)
         {
             var result = await _mediator.Send(command);
 
             if (result.IsFailed)
                 return Response(result);
 
-            // Set refresh token cookie
             HttpContext.Response.Cookies.Append(
                 "refresh_token",
                 result.Value.RefreshToken,
@@ -258,6 +256,23 @@ namespace ahis.template.api.Controllers.v1
                 });
 
             return Ok(new { message = "Successfully logged out." });
+        }
+
+
+        /// <summary>
+        /// Initiates password reset process using email.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint does not indicate whether the email exists.
+        /// If the account is valid, a password reset email will be sent.
+        /// </remarks>
+        [HttpPost("forgot-password")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> ForgotPassword(
+            [FromBody] ForgotPasswordCommand command)
+        {
+            var result = await _mediator.Send(command);
+            return Response(result);
         }
 
 

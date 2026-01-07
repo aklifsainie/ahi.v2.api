@@ -1,8 +1,11 @@
 ﻿using ahis.template.application.Features.AccountFeatures.Commands;
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
+using ahis.template.domain.Models.ViewModels.AccountVM;
+using FluentResults;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace ahis.template.api.Controllers.v1
 {
@@ -25,17 +28,39 @@ namespace ahis.template.api.Controllers.v1
         /// An email confirmation link will be sent after successful registration.
         /// </remarks>
         /// <param name="command">User registration data</param>
-        /// <response code="200">User registered successfully</response>
+        /// <response code="204">User registered successfully with no response contents</response>
         /// <response code="400">Invalid registration request</response>
         /// <response code="500">Unexpected internal server error</response>
         [HttpPost("register")]
-        [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
         public async Task<IActionResult> Register([FromBody] RegisterUserCommand command)
         {
-            return Response(await _mediator.Send(command));
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return NoContent(); //NoContent return 204
         }
 
         /// <summary>
@@ -45,17 +70,39 @@ namespace ahis.template.api.Controllers.v1
         /// Confirms the user's email address using the token sent via email.
         /// </remarks>
         /// <param name="command">Email confirmation payload</param>
-        /// <response code="200">Email confirmed successfully</response>
+        /// <response code="204">Email confirmed successfully with no response contents</response>
         /// <response code="400">Invalid or expired confirmation token</response>
         /// <response code="500">Unexpected internal server error</response>
         [HttpPost("confirm-email")]
-        [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
         public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailCommand command)
         {
-            return Response(await _mediator.Send(command));
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return NoContent(); //NoContent return 204
         }
 
         /// <summary>
@@ -65,17 +112,40 @@ namespace ahis.template.api.Controllers.v1
         /// Allows the user to set a password after email verification.
         /// </remarks>
         /// <param name="command">Password setup data</param>
-        /// <response code="200">Password set successfully</response>
-        /// <response code="400">Invalid password format</response>
+        /// <response code="204">Password set successfully with no response contents</response>
+        /// <response code="400">Invalid password format or request</response>
+        /// <response code="401">Unauthorized</response>
         /// <response code="500">Unexpected internal server error</response>
         [HttpPost("set-password")]
-        [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        [Produces("application/json")]
         public async Task<IActionResult> SetPassword([FromBody] SetPasswordCommand command)
         {
-            return Response(await _mediator.Send(command));
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return NoContent(); //NoContent return 204
         }
 
         /// <summary>
@@ -89,14 +159,36 @@ namespace ahis.template.api.Controllers.v1
         /// <response code="400">Invalid profile data</response>
         /// <response code="500">Unexpected internal server error</response>
         [HttpPost("update-profile")]
-        [ProducesResponseType(typeof(ResponseDto<UpdateProfileCommand>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseDto<ProfileUpdateResponseVM>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
         [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
         {
-            return Response(await _mediator.Send(command));
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return Response(result);
         }
 
         /// <summary>
@@ -110,14 +202,36 @@ namespace ahis.template.api.Controllers.v1
         /// <response code="400">Invalid request</response>
         /// <response code="500">Unexpected internal server error</response>
         [HttpPost("generate-authenticator-setup")]
-        [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseDto<AuthenticatorSetupResponseVM>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
         [Authorize]
         public async Task<IActionResult> GenerateAuthenticatorSetup([FromBody] GenerateAuthenticatorSetupCommand command)
         {
-            return Response(await _mediator.Send(command));
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return Response(result);
         }
 
         /// <summary>
@@ -161,12 +275,38 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
         [Authorize]
-        public async Task<IActionResult> EnableAuthenticator(
-            [FromBody] EnableTwoFactorCommand command)
+        public async Task<IActionResult> EnableAuthenticator([FromBody] EnableTwoFactorCommand command)
         {
-            return Response(await _mediator.Send(command));
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return Response(result);
         }
 
+
+        /// <response code="204">Two-factor authentication enabled successfully</response>
+        /// <response code="400">Invalid verification code or invalid request</response>
+        /// <response code="401">User is not authenticated</response>
+        /// <response code="500">Unexpected internal server error</response>
         [HttpPost("disable-2fa")]
         [Authorize]
         public async Task<IActionResult> DisableAuthenticator()
@@ -174,17 +314,26 @@ namespace ahis.template.api.Controllers.v1
             var result = await _mediator.Send(new DisableTwoFactorCommand());
 
             if (result.IsFailed)
-                return BadRequest(new
-                {
-                    success = false,
-                    errors = result.Errors.Select(e => e.Message)
-                });
-
-            return Ok(new
             {
-                success = true,
-                message = "Two-factor authentication disabled successfully."
-            });
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return NoContent();
         }
 
         /// <summary>

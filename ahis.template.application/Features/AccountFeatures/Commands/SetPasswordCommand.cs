@@ -6,18 +6,17 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ahis.template.application.Features.AccountFeatures.Commands
 {
-    public class SetPasswordCommand : IRequest<Result<object>>
+    public class SetPasswordCommand : IRequest<Result>
     {
         [Required]
         public string UserId { get; set; } = null!;
 
         [Required]
-        [MinLength(8)]
         public string Password { get; set; } = null!;
     }
 
 
-    public class SetPasswordCommandHandler : IRequestHandler<SetPasswordCommand, Result<object>>
+    public class SetPasswordCommandHandler : IRequestHandler<SetPasswordCommand, Result>
     {
         private readonly IAccountService _accountService;
         private readonly ILogger<SetPasswordCommandHandler> _logger;
@@ -28,16 +27,31 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
             _logger = logger;
         }
 
-        public async Task<Result<object>> Handle(SetPasswordCommand request, CancellationToken cancellationToken)
+        public async Task<Result> Handle(SetPasswordCommand request, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Setting password for user {UserId}", request.UserId);
-            var response = await _accountService.SetPasswordFirstTimeAsync(request.UserId, request.Password);
+            _logger.LogInformation(
+                "Setting password for user {UserId}",
+                request.UserId
+            );
 
-            if (!response.IsSuccess)
-                return Result.Fail<object>(response.Errors.FirstOrDefault()?.Message ?? "Registration failed.");
+            var result = await _accountService
+                .SetPasswordFirstTimeAsync(request.UserId, request.Password);
 
+            if (!result.IsSuccess)
+            {
+                _logger.LogWarning(
+                    "Failed to set password for user {UserId}: {Error}",
+                    request.UserId,
+                    result.Errors.FirstOrDefault()?.Message
+                );
 
-            return Result.Ok<object>(true).WithSuccess("Password has been saved");
+                return Result.Fail(
+                    result.Errors.FirstOrDefault()?.Message
+                    ?? "Failed to set password."
+                );
+            }
+
+            return Result.Ok();
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 
-namespace ahis.template.identity.Models
+namespace ahis.template.identity.Models.Entities
 {
     public class ApplicationUser : IdentityUser
     {
@@ -91,7 +91,7 @@ namespace ahis.template.identity.Models
         /// <summary>
         /// Convenience property that indicates whether the user is currently locked out according to Identity lockout rules.
         /// </summary>
-        public bool IsLockedOut => LockoutEnabled && (LockoutEnd.HasValue && LockoutEnd.Value > DateTimeOffset.UtcNow);
+        public bool IsLockedOut => LockoutEnabled && LockoutEnd.HasValue && LockoutEnd.Value > DateTimeOffset.UtcNow;
 
     }
 }

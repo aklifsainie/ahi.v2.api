@@ -1,12 +1,13 @@
 using ahis.template.application.Shared.Mediator;
 using ahis.template.identity.Interfaces;
+using ahis.template.identity.Models.DTOs;
 using FluentResults;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
 
 namespace ahis.template.application.Features.AccountFeatures.Commands
 {
-    public class UpdateProfileCommand : IRequest<Result<UpdateProfileCommand>>
+    public class UpdateProfileCommand : IRequest<Result<ProfileUpdateDto>>
     {
         [Required]
         public string UserId { get; set; } = null!;
@@ -18,7 +19,7 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
     }
 
 
-    public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand, Result<UpdateProfileCommand>>
+    public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand, Result<ProfileUpdateDto>>
     {
         private readonly IAccountService _accountService;
         private readonly ILogger<UpdateProfileCommandHandler> _logger;
@@ -29,10 +30,10 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
             _logger = logger;
         }
 
-        public async Task<Result<UpdateProfileCommand>> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
+        public async Task<Result<ProfileUpdateDto>> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
         {
             _logger.LogInformation("Updating profile for {UserId}", request.UserId);
-            var dto = new identity.Services.ProfileUpdateDto
+            var dto = new ProfileUpdateDto
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
@@ -41,9 +42,15 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
                 MarkAccountConfigured = true
             };
 
-            var res = await _accountService.UpdateProfileAsync(request.UserId, dto);
+            var result = await _accountService.UpdateProfileAsync(request.UserId, dto);
 
-            return Result.Ok<UpdateProfileCommand>(request).WithSuccess("Profile updated");
+            if (result.IsFailed)
+            {
+                _logger.LogWarning("Failed to update profile for {UserId}: {Errors}", request.UserId, result.Errors);
+                return Result.Fail<ProfileUpdateDto>(result.Errors);
+            }
+
+            return Result.Ok<ProfileUpdateDto>(dto).WithSuccess("Profile updated");
         }
     }
 }

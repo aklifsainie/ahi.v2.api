@@ -1,4 +1,4 @@
-﻿using ahis.template.identity.Models;
+﻿using ahis.template.identity.Models.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;

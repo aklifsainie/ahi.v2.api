@@ -1,15 +1,19 @@
-﻿using ahis.template.domain.Models.ViewModels.AuthenticationVM;
+﻿using ahis.template.domain.Enums;
+using ahis.template.domain.Models.ViewModels.AuthenticationVM;
 using ahis.template.identity.Contexts;
 using ahis.template.identity.Interfaces;
 using ahis.template.identity.Models;
+using ahis.template.identity.Models.Entities;
 using ahis.template.identity.SharedKernel;
 using FluentResults;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -21,6 +25,7 @@ namespace ahis.template.identity.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IdentityContext _context;
+        private readonly IEmailSender _emailSender;
         private readonly IdentityUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthenticationService> _logger;
@@ -29,6 +34,7 @@ namespace ahis.template.identity.Services
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             IdentityContext context,
+            IEmailSender emailSender,
             IdentityUnitOfWork unitOfWork,
             IConfiguration configuration,
             ILogger<AuthenticationService> logger)
@@ -36,6 +42,7 @@ namespace ahis.template.identity.Services
             _userManager = userManager;
             _signInManager = signInManager;
             _context = context;
+            _emailSender = emailSender;
             _unitOfWork = unitOfWork;
             _configuration = configuration;
             _logger = logger;
@@ -166,6 +173,9 @@ namespace ahis.template.identity.Services
             token.RevokedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            await _signInManager.SignOutAsync();
+
         }
 
         public async Task<Result<AuthenticationResponseVM>> RefreshTokenAsync(string userId, string refreshToken)
@@ -243,7 +253,7 @@ namespace ahis.template.identity.Services
         }
 
 
-        public async Task<Result<AuthenticationResponseVM>> VerifyTwoFactorAsync(string userId, string code, bool rememberMachine = false)
+        public async Task<Result<AuthenticationResponseVM>> VerifyTwoFactorAsync(string userId, TwoFactorProviderEnum provider, string code, bool rememberMachine = false)
         {
             await _unitOfWork.BeginTransactionAsync();
 
@@ -251,25 +261,42 @@ namespace ahis.template.identity.Services
             {
                 var user = await _userManager.FindByIdAsync(userId);
                 if (user == null)
-                    return Result.Fail<AuthenticationResponseVM>("User not found.");
+                    return Result.Fail("User not found.");
 
                 if (!user.TwoFactorEnabled)
-                    return Result.Fail<AuthenticationResponseVM>("Two-factor authentication is not enabled.");
+                    return Result.Fail("Two-factor authentication is not enabled.");
 
-                // Stateless 2FA verification (API-safe)
-                var isValid = await _userManager.VerifyTwoFactorTokenAsync(
-                    user,
-                    TokenOptions.DefaultAuthenticatorProvider,
-                    code
-                );
+                SignInResult signInResult;
 
-                if (!isValid)
-                    return Result.Fail<AuthenticationResponseVM>("Invalid two-factor verification code.");
-
-                // Remember this device (optional)
-                if (rememberMachine)
+                switch (provider)
                 {
-                    await _userManager.SetTwoFactorEnabledAsync(user, true);
+                    case TwoFactorProviderEnum.Authenticator:
+                        signInResult = await _signInManager
+                            .TwoFactorAuthenticatorSignInAsync(
+                                code,
+                                rememberMachine,
+                                rememberClient: false);
+                        break;
+
+                    case TwoFactorProviderEnum.RecoveryCode:
+                        signInResult = await _signInManager
+                            .TwoFactorRecoveryCodeSignInAsync(code);
+                        break;
+
+                    default:
+                        return Result.Fail("Unsupported two-factor provider.");
+                }
+
+                if (signInResult.IsLockedOut)
+                    return Result.Fail("Account is locked.");
+
+                if (!signInResult.Succeeded)
+                    return Result.Fail("Invalid or expired verification code.");
+
+                // If recovery code is used → force regeneration later
+                if (provider == TwoFactorProviderEnum.RecoveryCode)
+                {
+                    // optional: mark flag, audit log, etc.
                 }
 
                 // Generate tokens
@@ -296,9 +323,10 @@ namespace ahis.template.identity.Services
             {
                 await _unitOfWork.RollbackTransactionAsync();
                 _logger.LogError(ex, "Verify 2FA failed");
-                return Result.Fail<AuthenticationResponseVM>("Verify 2FA failed.");
+                return Result.Fail("Verify 2FA failed.");
             }
         }
+
 
 
         public async Task<Result> RevokeRefreshTokensAsync(string userId)
@@ -336,6 +364,35 @@ namespace ahis.template.identity.Services
                 return Result.Fail("Failed to revoke refresh tokens.");
             }
         }
+
+        public async Task<Result<string>> ForgotPasswordAsync(string email, string callbackBaseUrl)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return Result.Fail("Invalid email.");
+
+            var user = await _userManager.FindByEmailAsync(email);
+
+            // Prevent user enumeration
+            if (user == null || !await _userManager.IsEmailConfirmedAsync(user))
+                return Result.Ok();
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+            var encodedToken = WebUtility.UrlEncode(token);
+
+            var resetLink =
+                $"{callbackBaseUrl}/reset-password" +
+                $"?userId={user.Id}&token={encodedToken}";
+
+            await _emailSender.SendEmailAsync(
+                user.Email!,
+                "Reset your password",
+                $"Click the link to reset your password: {resetLink}"
+            );
+
+            return Result.Ok(user.Id.ToString());
+        }
+
 
         #region Helpers
 

@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace ahis.template.identity.Models
+namespace ahis.template.identity.Models.Entities
 {
     public class RefreshToken
     {

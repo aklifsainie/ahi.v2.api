@@ -1,8 +1,9 @@
+using ahis.template.api.Filters;
 using ahis.template.application.Services;
 using ahis.template.identity;
 using ahis.template.identity.Contexts;
 using ahis.template.identity.Interfaces;
-using ahis.template.identity.Models;
+using ahis.template.identity.Models.Entities;
 using ahis.template.identity.Services;
 using ahis.template.infrastructure;
 using ahis.template.infrastructure.Contexts;
@@ -69,7 +70,12 @@ namespace ahis.template.api
             {
                 var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
                 options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+                
+                // to show enum names + values
+                options.SupportNonNullableReferenceTypes();
+                options.SchemaFilter<EnumSchemaFilter>();
 
+                // swagger main title and version
                 options.SwaggerDoc("v1", new OpenApiInfo { Title = "AHIS API Template", Version = "v1" });
 
                 // Add JWT Bearer Authorization to Swagger

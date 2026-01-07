@@ -1,4 +1,5 @@
-﻿using ahis.template.domain.Models.ViewModels.AuthenticationVM;
+﻿using ahis.template.domain.Enums;
+using ahis.template.domain.Models.ViewModels.AuthenticationVM;
 using FluentResults;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -12,8 +13,9 @@ namespace ahis.template.identity.Interfaces
         //Task<Result> LogoutAsync(string refreshToken);
         Task LogoutAsync(string refreshToken);
         Task<Result<AuthenticationResponseVM>> RefreshTokenAsync(string userId, string refreshToken);
-        Task<Result<AuthenticationResponseVM>> VerifyTwoFactorAsync(string userId, string code, bool rememberMachine = false);
+        Task<Result<AuthenticationResponseVM>> VerifyTwoFactorAsync(string userId, TwoFactorProviderEnum provider, string code, bool rememberMachine = false);
         Task<Result> RevokeRefreshTokensAsync(string userId);
+        Task<Result<string>> ForgotPasswordAsync(string email, string callbackBaseUrl);
 
         JwtPayload DecodeToken(string token);
         IEnumerable<Claim> GetClaims(string token);

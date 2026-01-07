@@ -1,4 +1,5 @@
 ﻿using ahis.template.application.Shared.Mediator;
+using ahis.template.domain.Enums;
 using ahis.template.domain.Models.ViewModels.AuthenticationVM;
 using ahis.template.identity.Interfaces;
 using FluentResults;
@@ -11,14 +12,20 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
     /// </summary>
     public class VerifyTwoFactorLoginCommand : IRequest<Result<AuthenticationResponseVM>>
     {
-        public string UserId { get; set; }
+        public string UserId { get; set; } = default!;
+
         /// <summary>
-        /// 6-digit code from authenticator app
+        /// Two-factor provider (Authenticator or RecoveryCode)
+        /// </summary>
+        public TwoFactorProviderEnum Provider { get; set; }
+
+        /// <summary>
+        /// Verification code or recovery code
         /// </summary>
         public string Code { get; set; } = default!;
 
         /// <summary>
-        /// Remember this device (skip 2FA next time)
+        /// Remember this device (Authenticator only)
         /// </summary>
         public bool RememberMachine { get; set; } = false;
     }
@@ -35,19 +42,21 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
             _logger = logger;
         }
 
-        public async Task<Result<AuthenticationResponseVM>> Handle(VerifyTwoFactorLoginCommand request, CancellationToken cancellationToken)
+        public async Task<Result<AuthenticationResponseVM>> Handle(
+            VerifyTwoFactorLoginCommand request,
+            CancellationToken cancellationToken)
         {
-
             if (string.IsNullOrWhiteSpace(request.UserId))
-                return Result.Fail<AuthenticationResponseVM>("UserId is required.");
+                return Result.Fail("UserId is required.");
 
             if (string.IsNullOrWhiteSpace(request.Code))
-                return Result.Fail<AuthenticationResponseVM>("Verification code is required.");
+                return Result.Fail("Verification code is required.");
 
             try
             {
                 return await _authenticationService.VerifyTwoFactorAsync(
-                    request.UserId,
+                    userId: request.UserId,
+                    provider: request.Provider,
                     code: request.Code,
                     rememberMachine: request.RememberMachine
                 );
@@ -59,8 +68,7 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Commands
                     "2FA verification failed for user {UserId}",
                     request.UserId);
 
-                return Result.Fail<AuthenticationResponseVM>(
-                    "Failed to verify two-factor authentication.");
+                return Result.Fail("Failed to verify two-factor authentication.");
             }
         }
     }

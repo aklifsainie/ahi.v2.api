@@ -1,5 +1,4 @@
-﻿using ahis.template.identity.Models;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
@@ -7,6 +6,8 @@ using Microsoft.Extensions.Logging;
 using System.Text;
 using FluentResults;
 using ahis.template.identity.Interfaces;
+using ahis.template.identity.Models.Entities;
+using ahis.template.identity.Models.DTOs;
 
 
 namespace ahis.template.identity.Services
@@ -158,10 +159,10 @@ namespace ahis.template.identity.Services
                 if (hasPassword)
                     return Result.Fail("Password already set. Use change password flow.");
 
-                var addPwdResult = await _userManager.AddPasswordAsync(user, password);
-                if (!addPwdResult.Succeeded)
+                var addPasswordResult = await _userManager.AddPasswordAsync(user, password);
+                if (!addPasswordResult.Succeeded)
                 {
-                    var errors = string.Join(';', addPwdResult.Errors.Select(e => e.Description));
+                    var errors = string.Join(';', addPasswordResult.Errors.Select(e => e.Description));
                     _logger.LogWarning("AddPassword failed for user {UserId}: {Errors}", userId, errors);
                     return Result.Fail(errors);
                 }
@@ -186,6 +187,39 @@ namespace ahis.template.identity.Services
 
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+                return Result.Ok(encoded);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GeneratePasswordResetTokenAsync failed");
+                return Result.Fail<string>("Failed to generate password reset token.");
+            }
+        }
+
+        public async Task<Result<string>> SendEmailForgotPasswordAsync(string email, string callbackBaseUrl)
+        {
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user == null)
+                    return Result.Fail<string>("User not found.");
+
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+                // build callback url: e.g. {callbackBaseUrl}/api/account/confirm-email?userId={userId}&token={token}
+                var callbackUrl = BuildCallbackUrl(callbackBaseUrl, "account/reset-password", new Dictionary<string, string>
+                {
+                    ["userId"] = user.Id.ToString(),
+                    ["token"] = encoded
+                });
+
+                var subject = "Reset password";
+                var message = $"Please reset your password by <a href=\"{callbackUrl}\">clicking here</a>.";
+
+                await _emailSender.SendEmailAsync(user.Email!, subject, message);
+
                 return Result.Ok(encoded);
             }
             catch (Exception ex)
@@ -222,13 +256,16 @@ namespace ahis.template.identity.Services
         }
 
         // 5. Update profile (first login profile completion)
-        public async Task<Result> UpdateProfileAsync(string userId, ProfileUpdateDto dto)
+        public async Task<Result<ProfileUpdateDto>> UpdateProfileAsync(string userId, ProfileUpdateDto dto)
         {
             try
             {
                 var user = await _userManager.FindByIdAsync(userId);
                 if (user == null)
+                {
                     return Result.Fail("User not found.");
+                }
+                    
 
                 user.FirstName = dto.FirstName?.Trim();
                 user.LastName = dto.LastName?.Trim();
@@ -245,7 +282,7 @@ namespace ahis.template.identity.Services
                     return Result.Fail(errors);
                 }
 
-                return Result.Ok();
+                return Result.Ok<ProfileUpdateDto>(dto);
             }
             catch (Exception ex)
             {
@@ -261,7 +298,10 @@ namespace ahis.template.identity.Services
             {
                 var user = await _userManager.FindByIdAsync(userId);
                 if (user == null)
+                {
                     return Result.Fail<AuthenticatorSetupDto>("User not found.");
+                }
+                    
 
                 // Reset authenticator key (so QR code is generated fresh)
                 await _userManager.ResetAuthenticatorKeyAsync(user);
@@ -366,21 +406,5 @@ namespace ahis.template.identity.Services
         }
 
         #endregion
-    }
-
-    // DTOs used by IAccountService - declared at namespace level
-    public class ProfileUpdateDto
-    {
-        public string? FirstName { get; set; }
-        public string? LastName { get; set; }
-        public DateTime? DateOfBirth { get; set; }
-        public string? PhoneNumber { get; set; }
-        public bool MarkAccountConfigured { get; set; } = true;
-    }
-
-    public class AuthenticatorSetupDto
-    {
-        public string? Key { get; set; }
-        public string? ProvisionUri { get; set; }
     }
 }

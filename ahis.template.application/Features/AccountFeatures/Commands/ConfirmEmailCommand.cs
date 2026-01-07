@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ahis.template.application.Features.AccountFeatures.Commands
 {
-    public class ConfirmEmailCommand : IRequest<Result<object>>
+    public class ConfirmEmailCommand : IRequest<Result>
     {
         [Required]
         public string UserId { get; set; } = null!;
@@ -15,7 +15,7 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
         public string Token { get; set; } = null!; // base64url encoded
     }
 
-    public class ConfirmEmailCommandHandler : IRequestHandler<ConfirmEmailCommand, Result<object>>
+    public class ConfirmEmailCommandHandler : IRequestHandler<ConfirmEmailCommand, Result>
     {
         private readonly IAccountService _accountService;
         private readonly ILogger<ConfirmEmailCommandHandler> _logger;
@@ -26,14 +26,19 @@ namespace ahis.template.application.Features.AccountFeatures.Commands
             _logger = logger;
         }
 
-        public async Task<Result<object>> Handle(ConfirmEmailCommand request, CancellationToken cancellationToken)
+        public async Task<Result> Handle(ConfirmEmailCommand request, CancellationToken cancellationToken)
         {
             _logger.LogInformation("Confirming email for user {UserId}", request.UserId);
-            var res = await _accountService.ConfirmEmailAsync(request.UserId, request.Token);
-            if (!res.IsSuccess)
-                return Result.Fail<object>(res.Errors.FirstOrDefault()?.Message ?? "Confirm email failed.");
+            var result = await _accountService.ConfirmEmailAsync(request.UserId, request.Token);
+            if (!result.IsSuccess)
+            {
+                _logger.LogWarning($"Failed to register user {request.UserId}: {result.Errors.FirstOrDefault()?.Message}");
 
-            return Result.Ok<object>(true).WithSuccess("Email has been verified");
+                return Result.Fail(result.Errors.FirstOrDefault()?.Message ?? "Confirm email failed.");
+            }
+                
+
+            return Result.Ok();
         }
     }
 }
