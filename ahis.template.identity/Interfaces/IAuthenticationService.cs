@@ -12,7 +12,7 @@ namespace ahis.template.identity.Interfaces
         Task<Result<AuthenticationResponseVM>> LoginAsync(string userNameOrEmail, string password, bool rememberMe = false);
         //Task<Result> LogoutAsync(string refreshToken);
         Task LogoutAsync(string refreshToken);
-        Task<Result<AuthenticationResponseVM>> RefreshTokenAsync(string userId, string refreshToken);
+        Task<Result<AuthenticationResponseVM>> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken);
         Task<Result<AuthenticationResponseVM>> VerifyTwoFactorAsync(string userId, TwoFactorProviderEnum provider, string code, bool rememberMachine = false);
         Task<Result> RevokeRefreshTokensAsync(string userId);
         Task<Result> ForgotPasswordAsync(string email, string callbackBaseUrl);

@@ -17,6 +17,7 @@ using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 namespace ahis.template.identity.Services
 {
@@ -178,42 +179,40 @@ namespace ahis.template.identity.Services
 
         }
 
-        public async Task<Result<AuthenticationResponseVM>> RefreshTokenAsync(string userId, string refreshToken)
+        public async Task<Result<AuthenticationResponseVM>> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken)
         {
+
+            await _unitOfWork.BeginTransactionAsync();
             try
             {
-                // Fetch token first (NO transaction yet)
                 var storedToken = await _context.RefreshTokens
-                    .FirstOrDefaultAsync(x =>
-                        x.UserId == userId &&
-                        x.Token == refreshToken);
+                    .AsTracking()
+                    .FirstOrDefaultAsync(x => x.Token == refreshToken, cancellationToken);
 
                 if (storedToken == null)
-                    return Result.Fail<AuthenticationResponseVM>("Invalid refresh token.");
+                    return Result.Fail("Invalid refresh token.");
 
-                // Detect reuse (token replay attack)
                 if (storedToken.IsRevoked)
                 {
                     _logger.LogWarning(
-                        "Refresh token reuse detected for user {UserId}", userId);
+                        "Refresh token reuse detected for user {UserId}",
+                        storedToken.UserId);
 
-                    await RevokeRefreshTokensAsync(userId);
-                    return Result.Fail<AuthenticationResponseVM>(
+                    await RevokeRefreshTokensAsync(storedToken.UserId);
+                    await _unitOfWork.CommitTransactionAsync();
+
+                    return Result.Fail(
                         "Refresh token reuse detected. All sessions revoked.");
                 }
 
-                // Expiry validation
-                if (storedToken.ExpiresAt < DateTime.UtcNow)
-                    return Result.Fail<AuthenticationResponseVM>("Expired refresh token.");
+                if (storedToken.ExpiresAt <= DateTime.UtcNow)
+                    return Result.Fail("Expired refresh token.");
 
-                var user = await _userManager.FindByIdAsync(userId);
+                var user = await _userManager.FindByIdAsync(storedToken.UserId);
                 if (user == null)
-                    return Result.Fail<AuthenticationResponseVM>("User not found.");
+                    return Result.Fail("User not found.");
 
-                // Begin atomic operation
-                await _unitOfWork.BeginTransactionAsync();
-
-                // Rotate tokens
+                // Rotate token
                 storedToken.IsRevoked = true;
                 storedToken.RevokedAt = DateTime.UtcNow;
 
@@ -225,7 +224,6 @@ namespace ahis.template.identity.Services
                     newRefreshToken,
                     newRefreshExpiresAt);
 
-                // 6️⃣ Commit once
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitTransactionAsync();
 
@@ -236,19 +234,16 @@ namespace ahis.template.identity.Services
                         int.Parse(_configuration["Jwt:AccessTokenExpirySeconds"] ?? "3600"),
                     RefreshToken = newRefreshToken,
                     RefreshTokenExpiresAt = newRefreshExpiresAt,
-                    UserId = user.Id.ToString()
+                    UserId = user.Id
                 });
             }
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync();
 
-                _logger.LogError(
-                    ex,
-                    "RefreshTokenAsync failed for user {UserId}",
-                    userId);
+                _logger.LogError(ex, "RefreshTokenAsync failed");
 
-                return Result.Fail<AuthenticationResponseVM>("Failed to refresh token.");
+                return Result.Fail("Failed to refresh token.");
             }
         }
 

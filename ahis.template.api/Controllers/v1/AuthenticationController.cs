@@ -83,7 +83,7 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(typeof(ResponseDto<CheckAccountStateVM>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-        [EnableRateLimiting("LoginPolicy")]
+        [EnableRateLimiting("AuthPolicy")]
         public async Task<IActionResult> CheckAccount([FromBody] CheckAccountStateByUsernameOrEmailQuery query)
         {
             var result = await _mediator.Send(query);
@@ -154,7 +154,7 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         [Produces("application/json")]
-        [EnableRateLimiting("LoginPolicy")]
+        [EnableRateLimiting("AuthPolicy")]
         public async Task<IActionResult> Login(LoginCommand command)
         {
 
@@ -190,9 +190,9 @@ namespace ahis.template.api.Controllers.v1
                     {
                         HttpOnly = true,
                         Secure = true,
-                        SameSite = SameSiteMode.Strict,
+                        SameSite = SameSiteMode.Lax,
                         Expires = result.Value.RefreshTokenExpiresAt,
-                        Path = "/api/authentication/refresh"
+                        Path = "/"
                     }
                 );
             }
@@ -418,6 +418,99 @@ namespace ahis.template.api.Controllers.v1
             return NoContent();
         }
 
+
+        /// <summary>
+        /// Refreshes an access token using a valid refresh token.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint issues a new access token when the current one has expired.
+        ///
+        /// How it works:
+        /// 1. The refresh token is stored in an HttpOnly secure cookie
+        /// 2. Frontend calls this endpoint without sending any token manually
+        /// 3. Backend validates the refresh token and issues a new access token
+        /// 4. A new refresh token is rotated and stored back into the cookie
+        ///
+        /// Security notes:
+        /// - Refresh token is never exposed to JavaScript
+        /// - Token rotation is enforced
+        /// - Invalid or expired tokens will return a validation error
+        ///
+        /// Frontend usage:
+        /// - Call this endpoint when receiving 401 from protected APIs
+        /// - Do NOT store refresh token in localStorage or sessionStorage
+        /// </remarks>
+        /// <param name="command">Refresh token request payload</param>
+        /// <response code="200">Token refreshed successfully</response>
+        /// <response code="400">Invalid or expired refresh token</response>
+        /// <response code="429">Too many requests</response>
+        /// <response code="500">Unexpected server error</response>
+        [HttpPost("refresh-token")]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [EnableRateLimiting("AuthPolicy")]
+        public async Task<IActionResult> RefreshToken()
+        {
+            var refreshToken = HttpContext.Request.Cookies["refresh_token"];
+
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                var modelState = new ModelStateDictionary();
+
+                modelState.AddModelError("refreshToken", "Refresh token is missing.");
+
+                return ValidationProblem(modelState);
+            }
+
+            var result = await _mediator.Send(new RefreshTokenCommand(refreshToken));
+
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+
+            HttpContext.Response.Cookies.Append(
+                "refresh_token",
+                result.Value.RefreshToken!,
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Lax,
+                    Expires = result.Value.RefreshTokenExpiresAt,
+                    Path = "/"
+                }
+            );
+
+
+
+            return Response(Result.Ok(new
+            {
+                accessToken = result.Value.AccessToken,
+                expiresInSeconds = result.Value.ExpiresInSeconds,
+                requiresTwoFactor = result.Value.RequiresTwoFactor
+            }).WithSuccess("Token refreshed"));
+        }
 
 
 

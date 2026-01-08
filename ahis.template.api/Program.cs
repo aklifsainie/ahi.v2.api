@@ -140,7 +140,7 @@ namespace ahis.template.api
             services.AddRateLimiter(options =>
             {
                 // Strict: login endpoint
-                options.AddFixedWindowLimiter("LoginPolicy", limiter =>
+                options.AddFixedWindowLimiter("AuthPolicy", limiter =>
                 {
                     limiter.PermitLimit = 5; // 5 requests
                     limiter.Window = TimeSpan.FromMinutes(1);
