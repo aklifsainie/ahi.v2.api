@@ -4,6 +4,7 @@ using ahis.template.application.Shared.Mediator;
 using ahis.template.domain.Models.ViewModels.AccountVM;
 using FluentResults;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.RateLimiting;
@@ -381,6 +382,47 @@ namespace ahis.template.api.Controllers.v1
                 return ValidationProblem(modelState);
             }
 
+            return NoContent();
+        }
+
+
+        /// <summary>
+        /// Resends the email confirmation link.
+        /// </summary>
+        /// <remarks>
+        /// Security notes:
+        /// - Response is always 204 to prevent user enumeration
+        /// - Email is sent only if the account exists and is unconfirmed
+        /// </remarks>
+        [HttpPost("resend-confirmation-email")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        [EnableRateLimiting("AuthPolicy")]
+        public async Task<IActionResult> ResendConfirmationEmail([FromBody] ResendConfirmationEmailCommand command)
+        {
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            // Always return 204
             return NoContent();
         }
 

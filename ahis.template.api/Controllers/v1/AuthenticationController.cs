@@ -517,11 +517,18 @@ namespace ahis.template.api.Controllers.v1
         }
 
 
-        //[HttpPost("decode-token")]
-        //public async Task<IActionResult> DecodeToken([FromBody] string token)
-        //{
-        //    var result = await _mediator.Send(new DecodeTokenQuery(token));
-        //    return Response(result);
-        //}
+        [HttpPost("decode-token")]
+        public async Task<IActionResult> DecodeToken([FromBody] string token)
+        {
+            var result = await _mediator.Send(new DecodeTokenQuery(token));
+            return Response(result);
+        }
+
+        [HttpPost("encode-token")]
+        public async Task<IActionResult> EncodeToken([FromBody] EncodeTokenQuery query)
+        {
+            var result = await _mediator.Send(query);
+            return Response(result);
+        }
     }
 }
