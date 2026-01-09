@@ -176,84 +176,6 @@ namespace ahis.template.identity.Services
             }
         }
 
-        // Generate password reset token (encoded)
-        public async Task<Result<string>> GeneratePasswordResetTokenAsync(string email)
-        {
-            try
-            {
-                var user = await _userManager.FindByEmailAsync(email);
-                if (user == null)
-                    return Result.Fail<string>("User not found.");
-
-                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-
-                return Result.Ok(encoded);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "GeneratePasswordResetTokenAsync failed");
-                return Result.Fail<string>("Failed to generate password reset token.");
-            }
-        }
-
-        public async Task<Result<string>> SendEmailForgotPasswordAsync(string email, string callbackBaseUrl)
-        {
-            try
-            {
-                var user = await _userManager.FindByEmailAsync(email);
-                if (user == null)
-                    return Result.Fail<string>("User not found.");
-
-                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-
-                // build callback url: e.g. {callbackBaseUrl}/api/account/confirm-email?userId={userId}&token={token}
-                var callbackUrl = BuildCallbackUrl(callbackBaseUrl, "account/reset-password", new Dictionary<string, string>
-                {
-                    ["userId"] = user.Id.ToString(),
-                    ["token"] = encoded
-                });
-
-                var subject = "Reset password";
-                var message = $"Please reset your password by <a href=\"{callbackUrl}\">clicking here</a>.";
-
-                await _emailSender.SendEmailAsync(user.Email!, subject, message);
-
-                return Result.Ok(encoded);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "GeneratePasswordResetTokenAsync failed");
-                return Result.Fail<string>("Failed to generate password reset token.");
-            }
-        }
-
-        public async Task<Result> ResetPasswordAsync(string userId, string encodedToken, string newPassword)
-        {
-            try
-            {
-                var user = await _userManager.FindByIdAsync(userId);
-                if (user == null)
-                    return Result.Fail("User not found.");
-
-                var token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(encodedToken));
-                var resetResult = await _userManager.ResetPasswordAsync(user, token, newPassword);
-                if (!resetResult.Succeeded)
-                {
-                    var errors = string.Join(';', resetResult.Errors.Select(e => e.Description));
-                    _logger.LogWarning("ResetPasswordAsync failed for user {UserId}: {Errors}", userId, errors);
-                    return Result.Fail(errors);
-                }
-
-                return Result.Ok();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "ResetPasswordAsync error");
-                return Result.Fail("An unexpected error occurred while resetting password.");
-            }
-        }
 
         // 5. Update profile (first login profile completion)
         public async Task<Result<ProfileUpdateDto>> UpdateProfileAsync(string userId, ProfileUpdateDto dto)
@@ -384,6 +306,45 @@ namespace ahis.template.identity.Services
                 _logger.LogError(ex, "DisableAuthenticatorAsync error");
                 return Result.Fail("Failed to disable authenticator.");
             }
+        }
+
+        public async Task<Result> ChangePasswordAsync(string userId, string currentPassword, string newPassword, CancellationToken cancellationToken)
+        {
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return Result.Fail("User not found.");
+
+            var result = await _userManager.ChangePasswordAsync(
+                user,
+                currentPassword,
+                newPassword);
+
+            if (!result.Succeeded)
+            {
+                var errors = result.Errors.Select(e =>
+                {
+                    var error = new Error(e.Description);
+
+                    if (e.Code.Contains("Password"))
+                        error.WithMetadata("Field", "newPassword");
+                    else if (e.Code.Contains("PasswordMismatch"))
+                        error.WithMetadata("Field", "currentPassword");
+
+                    return error;
+                });
+
+                return Result.Fail(errors);
+            }
+
+            // Invalidate all existing sessions
+            await _userManager.UpdateSecurityStampAsync(user);
+
+            _logger.LogInformation(
+                "Password changed successfully for user {UserId}",
+                userId);
+
+            return Result.Ok();
         }
 
         #region Helpers

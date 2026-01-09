@@ -6,6 +6,7 @@ using FluentResults;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ahis.template.api.Controllers.v1
 {
@@ -336,28 +337,54 @@ namespace ahis.template.api.Controllers.v1
             return NoContent();
         }
 
+
         /// <summary>
-        /// Generate password reset token
+        /// Changes the password for the currently authenticated user.
         /// </summary>
         /// <remarks>
-        /// Generates a password reset token and sends it to the user's registered email.
+        /// Security notes:
+        /// - User must be authenticated
+        /// - Current password must be valid
+        /// - Security stamp is updated to invalidate other sessions
         /// </remarks>
-        /// <param name="command">Password reset token request</param>
-        /// <response code="200">Password reset token generated successfully</response>
-        /// <response code="400">Invalid email address</response>
-        /// <response code="500">Unexpected internal server error</response>
-        [HttpPost("generate-password-reset-token")]
-        [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
+        [Authorize]
+        [HttpPost("change-password")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        [Produces("application/json")]
-        public async Task<IActionResult> GeneratePasswordResetToken([FromBody] GeneratePasswordResetTokenCommand command)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        [EnableRateLimiting("AuthPolicy")]
+        public async Task<IActionResult> ChangePassword(
+            [FromBody] ChangePasswordCommand command)
         {
-            return Response(await _mediator.Send(command));
+            var result = await _mediator.Send(
+                new ChangePasswordCommand(
+                    command.CurrentPassword,
+                    command.NewPassword));
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            return NoContent();
         }
 
-
-        
 
     }
 }

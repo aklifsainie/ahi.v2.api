@@ -1,4 +1,5 @@
 using ahis.template.api.Filters;
+using ahis.template.application.Interfaces.Services;
 using ahis.template.application.Services;
 using ahis.template.identity;
 using ahis.template.identity.Contexts;
@@ -30,6 +31,7 @@ namespace ahis.template.api
 
             // Dependencies Injection
             builder.Services.AddScoped<IEmailSender, EmailSender>();
+            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
             builder.Services.AddScoped<UnitOfWork>();
 
 

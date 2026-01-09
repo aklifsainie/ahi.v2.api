@@ -11,12 +11,10 @@ namespace ahis.template.identity.Interfaces
         Task<Result> SendEmailConfirmationAsync(ApplicationUser user, string callbackBaseUrl);
         Task<Result> ConfirmEmailAsync(string userId, string encodedToken);
         Task<Result> SetPasswordFirstTimeAsync(string userId, string password);
-        Task<Result<string>> GeneratePasswordResetTokenAsync(string email);
-        Task<Result<string>> SendEmailForgotPasswordAsync(string email, string callbackBaseUrl);
-        Task<Result> ResetPasswordAsync(string userId, string encodedToken, string newPassword);
         Task<Result<ProfileUpdateDto>> UpdateProfileAsync(string userId, ProfileUpdateDto dto);
         Task<Result<AuthenticatorSetupDto>> GenerateAuthenticatorSetupAsync(string userId);
         Task<Result<IEnumerable<string>>> EnableAuthenticatorAsync(string userId, string verificationCode);
         Task<Result> DisableAuthenticatorAsync(string userId);
+        Task<Result> ChangePasswordAsync(string userId, string currentPassword, string newPassword, CancellationToken cancellationToken);
     }
 }
