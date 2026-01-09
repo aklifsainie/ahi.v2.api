@@ -208,9 +208,9 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
         [Authorize]
-        public async Task<IActionResult> GenerateAuthenticatorSetup([FromBody] GenerateAuthenticatorSetupCommand command)
+        public async Task<IActionResult> GenerateAuthenticatorSetup()
         {
-            var result = await _mediator.Send(command);
+            var result = await _mediator.Send(new GenerateAuthenticatorSetupCommand());
 
             if (result.IsFailed)
             {
@@ -354,8 +354,7 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         [EnableRateLimiting("AuthPolicy")]
-        public async Task<IActionResult> ChangePassword(
-            [FromBody] ChangePasswordCommand command)
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
         {
             var result = await _mediator.Send(
                 new ChangePasswordCommand(
