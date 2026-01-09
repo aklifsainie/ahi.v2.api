@@ -1,4 +1,5 @@
 ﻿using ahis.template.application.Features.AccountFeatures.Commands;
+using ahis.template.application.Features.AccountFeatures.Queries;
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
 using ahis.template.domain.Models.ViewModels.AccountVM;
@@ -394,6 +395,7 @@ namespace ahis.template.api.Controllers.v1
         /// - Response is always 204 to prevent user enumeration
         /// - Email is sent only if the account exists and is unconfirmed
         /// </remarks>
+        [Authorize]
         [HttpPost("resend-confirmation-email")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -425,6 +427,30 @@ namespace ahis.template.api.Controllers.v1
             // Always return 204
             return NoContent();
         }
+
+
+        /// <summary>
+        /// Gets the currently authenticated user's account information.
+        /// </summary>
+        /// <remarks>
+        /// Security notes:
+        /// - Requires valid access token
+        /// - User identity is derived from JWT, not client input
+        /// </remarks>
+        [Authorize]
+        [HttpGet("me")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetMyAccount()
+        {
+            var result = await _mediator.Send(new GetMyAccountQuery());
+
+            if (result.IsFailed)
+                return Unauthorized();
+
+            return Ok(result.Value);
+        }
+
 
 
     }

@@ -397,6 +397,34 @@ namespace ahis.template.identity.Services
             }
         }
 
+        public async Task<Result<AccountMeDto>> GetMyAccountAsync(string userId, CancellationToken cancellationToken)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+            {
+                _logger.LogWarning(
+                    "Authenticated user not found. UserId: {UserId}",
+                    userId);
+
+                return Result.Fail("User not found.");
+            }
+
+            return Result.Ok(new AccountMeDto
+            {
+                UserId = user.Id,
+                Email = user.Email!,
+                Username = user.UserName!,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                DateOfBirth = user.DateOfBirth,
+                PhoneNumber = user.PhoneNumber,
+                EmailConfirmed = user.EmailConfirmed,
+                TwoFactorEnabled = user.TwoFactorEnabled
+            });
+        }
+
+
         #region Helpers
 
         private string BuildCallbackUrl(string baseUrl, string path, IDictionary<string, string> query)

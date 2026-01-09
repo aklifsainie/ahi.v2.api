@@ -2,6 +2,7 @@
 using ahis.template.identity.Models.Entities;
 using ahis.template.identity.Services;
 using FluentResults;
+using System.Threading;
 
 namespace ahis.template.identity.Interfaces
 {
@@ -17,5 +18,6 @@ namespace ahis.template.identity.Interfaces
         Task<Result> DisableAuthenticatorAsync(string userId);
         Task<Result> ChangePasswordAsync(string userId, string currentPassword, string newPassword, CancellationToken cancellationToken);
         Task<Result> ResendConfirmationEmailAsync(string email, string callbackBaseUrl, CancellationToken cancellationToken);
+        Task<Result<AccountMeDto>> GetMyAccountAsync(string userId, CancellationToken cancellationToken);
     }
 }
