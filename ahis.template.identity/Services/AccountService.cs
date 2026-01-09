@@ -347,6 +347,84 @@ namespace ahis.template.identity.Services
             return Result.Ok();
         }
 
+        public async Task<Result> ResendConfirmationEmailAsync(string email, string callbackBaseUrl, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var user = await _userManager.FindByEmailAsync(email);
+
+
+                if (user == null)
+                {
+                    return Result.Fail("Fail to re-send confirmation email");
+                }
+
+
+                if (user.EmailConfirmed)
+                {
+                    return Result.Ok();
+                }
+
+
+                var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+                // build callback url: e.g. {callbackBaseUrl}/api/account/confirm-email?userId={userId}&token={token}
+                var callbackUrl = BuildCallbackUrl(callbackBaseUrl, "account/confirm-email", new Dictionary<string, string>
+                {
+                    ["userId"] = user.Id.ToString(),
+                    ["token"] = encodedToken
+                });
+
+                var subject = "Confirm your email";
+                var message = $"Please confirm your account by <a href=\"{callbackUrl}\">clicking here</a>.";
+
+                await _emailSender.SendEmailAsync(user.Email!, subject, message);
+
+                _logger.LogInformation("Email confirmation sent to {Email}", user.Email);
+
+                return Result.Ok();
+            }
+            catch (Exception ex)
+            {
+                // Never leak errors to client
+                _logger.LogError(
+                    ex,
+                    "Failed to resend confirmation email for {Email}",
+                    email);
+
+                return Result.Fail($"Failed to resend confirmation email for {email}");
+            }
+        }
+
+        public async Task<Result<AccountMeDto>> GetMyAccountAsync(string userId, CancellationToken cancellationToken)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+            {
+                _logger.LogWarning(
+                    "Authenticated user not found. UserId: {UserId}",
+                    userId);
+
+                return Result.Fail("User not found.");
+            }
+
+            return Result.Ok(new AccountMeDto
+            {
+                UserId = user.Id,
+                Email = user.Email!,
+                Username = user.UserName!,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                DateOfBirth = user.DateOfBirth,
+                PhoneNumber = user.PhoneNumber,
+                EmailConfirmed = user.EmailConfirmed,
+                TwoFactorEnabled = user.TwoFactorEnabled
+            });
+        }
+
+
         #region Helpers
 
         private string BuildCallbackUrl(string baseUrl, string path, IDictionary<string, string> query)

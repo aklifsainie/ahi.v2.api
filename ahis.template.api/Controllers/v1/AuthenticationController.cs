@@ -147,7 +147,7 @@ namespace ahis.template.api.Controllers.v1
         /// <response code="500">Unexpected internal server error</response>
 
         [HttpPost("login")]
-        [ProducesResponseType(typeof(ResponseDto<AuthenticationResponseVM>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseDto<LoginResponseVM>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status423Locked)]
@@ -197,15 +197,16 @@ namespace ahis.template.api.Controllers.v1
                 );
             }
 
+            LoginResponseVM loginResponse = new LoginResponseVM
+            { 
+                AccessToken = result.Value.AccessToken,
+                ExpiresInSeconds = result.Value.ExpiresInSeconds,
+                RequiresTwoFactor = result.Value.RequiresTwoFactor,
+                IsEmailConfirmed = result.Value.IsEmailConfirmed
+            };
 
 
-            return Response(Result.Ok(new
-            {
-                accessToken = result.Value.AccessToken,
-                expiresInSeconds = result.Value.ExpiresInSeconds,
-                userId = result.Value.UserId,
-                requiresTwoFactor = result.Value.RequiresTwoFactor
-            }).WithSuccess("Successfully logged in"));
+            return Response(Result.Ok(loginResponse).WithSuccess("Successfully logged in"));
 
 
         }
@@ -247,7 +248,7 @@ namespace ahis.template.api.Controllers.v1
         /// Returns an access token and token expiry information upon successful verification.
         /// </returns>
         [HttpPost("verify-2fa")]
-        [ProducesResponseType(typeof(ResponseDto<AuthenticationResponseVM>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseDto<LoginResponseVM>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status423Locked)]
@@ -289,13 +290,15 @@ namespace ahis.template.api.Controllers.v1
                     Path = "/api/authentication/refresh"
                 });
 
-            return Response(Result.Ok(new
+            LoginResponseVM loginResponse = new LoginResponseVM
             {
-                accessToken = result.Value.AccessToken,
-                expiresInSeconds = result.Value.ExpiresInSeconds,
-                userId = result.Value.UserId,
-                requiresTwoFactor = result.Value.RequiresTwoFactor
-            }).WithSuccess("Successfully authenticated with two-factor authentication"));
+                AccessToken = result.Value.AccessToken,
+                ExpiresInSeconds = result.Value.ExpiresInSeconds,
+                RequiresTwoFactor = result.Value.RequiresTwoFactor,
+                IsEmailConfirmed = result.Value.IsEmailConfirmed
+            };
+
+            return Response(Result.Ok(loginResponse).WithSuccess("Successfully authenticated with two-factor authentication"));
         }
 
         [HttpPost("logout")]
@@ -447,7 +450,7 @@ namespace ahis.template.api.Controllers.v1
         /// <response code="500">Unexpected server error</response>
         [HttpPost("refresh-token")]
         [Produces("application/json")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResponseDto<LoginResponseVM>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -502,61 +505,30 @@ namespace ahis.template.api.Controllers.v1
                 }
             );
 
-
-
-            return Response(Result.Ok(new
+            LoginResponseVM loginResponse = new LoginResponseVM
             {
-                accessToken = result.Value.AccessToken,
-                expiresInSeconds = result.Value.ExpiresInSeconds,
-                requiresTwoFactor = result.Value.RequiresTwoFactor
-            }).WithSuccess("Token refreshed"));
+                AccessToken = result.Value.AccessToken,
+                ExpiresInSeconds = result.Value.ExpiresInSeconds,
+                RequiresTwoFactor = result.Value.RequiresTwoFactor,
+                IsEmailConfirmed = result.Value.IsEmailConfirmed
+            };
+
+            return Response(Result.Ok(loginResponse).WithSuccess("Token refreshed"));
         }
 
 
+        [HttpPost("decode-token")]
+        public async Task<IActionResult> DecodeToken([FromBody] string token)
+        {
+            var result = await _mediator.Send(new DecodeTokenQuery(token));
+            return Response(result);
+        }
 
-        //[HttpPost("refresh")]
-        //public async Task<IActionResult> Refresh()
-        //{
-        //    if (!Request.Cookies.TryGetValue("refresh_token", out var refreshToken))
-        //        return Unauthorized("Missing refresh token.");
-
-        //    var userId = User.GetUserIdFromExpiredToken(); // custom helper
-
-        //    var result = await _mediator.Send(
-        //        new RefreshTokenCommand(userId, refreshToken));
-
-        //    if (result.IsFailed)
-        //        return Response(result);
-
-        //    var auth = result.Value;
-
-        //    // Rotate refresh token
-        //    HttpContext.Response.Cookies.Append(
-        //        "refresh_token",
-        //        auth.RefreshToken,
-        //        new CookieOptions
-        //        {
-        //            HttpOnly = true,
-        //            Secure = true,
-        //            SameSite = SameSiteMode.Strict,
-        //            Expires = auth.RefreshTokenExpiresAt,
-        //            Path = "/api/authentication/refresh"
-        //        });
-
-        //    auth.RefreshToken = null;
-
-        //    return Ok(new
-        //    {
-        //        accessToken = auth.AccessToken,
-        //        expiresInSeconds = auth.ExpiresInSeconds
-        //    });
-        //}
-
-        //[HttpPost("decode-token")]
-        //public async Task<IActionResult> DecodeToken([FromBody] string token)
-        //{
-        //    var result = await _mediator.Send(new DecodeTokenQuery(token));
-        //    return Response(result);
-        //}
+        [HttpPost("encode-token")]
+        public async Task<IActionResult> EncodeToken([FromBody] EncodeTokenQuery query)
+        {
+            var result = await _mediator.Send(query);
+            return Response(result);
+        }
     }
 }

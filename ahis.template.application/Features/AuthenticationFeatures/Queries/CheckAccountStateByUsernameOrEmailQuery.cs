@@ -31,7 +31,6 @@ namespace ahis.template.application.Features.AuthenticationFeatures.Queries
             var result = await _authenticationService.CheckAccountStateByEmailAsync(request.userNameOrEmail);
             var dto = new CheckAccountStateVM
             { 
-                UserId = result.Value.UserId,
                 RequiresTwoFactor = result.Value.RequiresTwoFactor,
                 IsEmailConfirmed = result.Value.IsEmailConfirmed,
                 IsPasswordCreated = result.Value.IsPasswordCreated

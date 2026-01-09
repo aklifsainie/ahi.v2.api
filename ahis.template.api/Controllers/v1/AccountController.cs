@@ -1,9 +1,11 @@
 ﻿using ahis.template.application.Features.AccountFeatures.Commands;
+using ahis.template.application.Features.AccountFeatures.Queries;
 using ahis.template.application.Shared;
 using ahis.template.application.Shared.Mediator;
 using ahis.template.domain.Models.ViewModels.AccountVM;
 using FluentResults;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.RateLimiting;
@@ -208,9 +210,9 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
         [Authorize]
-        public async Task<IActionResult> GenerateAuthenticatorSetup([FromBody] GenerateAuthenticatorSetupCommand command)
+        public async Task<IActionResult> GenerateAuthenticatorSetup()
         {
-            var result = await _mediator.Send(command);
+            var result = await _mediator.Send(new GenerateAuthenticatorSetupCommand());
 
             if (result.IsFailed)
             {
@@ -354,8 +356,7 @@ namespace ahis.template.api.Controllers.v1
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         [EnableRateLimiting("AuthPolicy")]
-        public async Task<IActionResult> ChangePassword(
-            [FromBody] ChangePasswordCommand command)
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
         {
             var result = await _mediator.Send(
                 new ChangePasswordCommand(
@@ -384,6 +385,72 @@ namespace ahis.template.api.Controllers.v1
 
             return NoContent();
         }
+
+
+        /// <summary>
+        /// Resends the email confirmation link.
+        /// </summary>
+        /// <remarks>
+        /// Security notes:
+        /// - Response is always 204 to prevent user enumeration
+        /// - Email is sent only if the account exists and is unconfirmed
+        /// </remarks>
+        [Authorize]
+        [HttpPost("resend-confirmation-email")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        [EnableRateLimiting("AuthPolicy")]
+        public async Task<IActionResult> ResendConfirmationEmail([FromBody] ResendConfirmationEmailCommand command)
+        {
+            var result = await _mediator.Send(command);
+
+            if (result.IsFailed)
+            {
+                var modelState = new ModelStateDictionary();
+
+
+                foreach (var error in result.Errors)
+                {
+                    if (error.Metadata.TryGetValue("Field", out var field))
+                    {
+                        modelState.AddModelError(field.ToString()!, error.Message);
+                    }
+                    else
+                    {
+                        modelState.AddModelError("general", error.Message);
+                    }
+                }
+
+                return ValidationProblem(modelState);
+            }
+
+            // Always return 204
+            return NoContent();
+        }
+
+
+        /// <summary>
+        /// Gets the currently authenticated user's account information.
+        /// </summary>
+        /// <remarks>
+        /// Security notes:
+        /// - Requires valid access token
+        /// - User identity is derived from JWT, not client input
+        /// </remarks>
+        [Authorize]
+        [HttpGet("me")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetMyAccount()
+        {
+            var result = await _mediator.Send(new GetMyAccountQuery());
+
+            if (result.IsFailed)
+                return Unauthorized();
+
+            return Ok(result.Value);
+        }
+
 
 
     }

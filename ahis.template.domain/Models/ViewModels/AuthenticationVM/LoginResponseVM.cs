@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 
 namespace ahis.template.domain.Models.ViewModels.AuthenticationVM
 {
-    public class CheckAccountStateVM
+    public class LoginResponseVM
     {
+        public string AccessToken { get; init; } = string.Empty;
+        public int ExpiresInSeconds { get; init; }
         public bool RequiresTwoFactor { get; init; }
         public bool IsEmailConfirmed { get; init; }
-        public bool IsPasswordCreated { get; init; }
     }
 }

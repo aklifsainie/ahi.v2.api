@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -204,6 +205,34 @@ namespace ahis.template.api
                             context.Token = token;
                         }
                         return Task.CompletedTask;
+                    },
+                    OnTokenValidated = async context => {
+
+                        var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+
+                        var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                        if (string.IsNullOrWhiteSpace(userId))
+                        {
+                            context.Fail("Invalid token: missing user id");
+                            return;
+                        }
+
+                        var user = await userManager.FindByIdAsync(userId);
+
+                        // CRITICAL CHECK
+                        if (user == null)
+                        {
+                            context.Fail("User no longer exists");
+                            return;
+                        }
+
+                        // Optional hardening
+                        if (user.LockoutEnabled && user.LockoutEnd > DateTimeOffset.UtcNow)
+                        {
+                            context.Fail("User is locked out");
+                            return;
+                        }
                     }
                 };
             }).AddIdentityCookies();
